@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
+import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { request } from "node:http";
 import {
   appendMessage,
+  createApiRuntimeConfig,
+  createApiServer,
   handleGroundedProjectDialoguePageRoute,
   composeGroundedProjectResponse,
   createProject,
@@ -17,8 +21,10 @@ import {
   searchProjectDocuments,
   materializeMapSnapshot,
   registerProjectDocument,
+  resolveLabRelativePath,
   renderGroundedProjectDialoguePage,
-  validateClaimRequest
+  validateClaimRequest,
+  writeApiErrorLog
 } from "../src/index";
 import { createEmptyGraphSnapshot, projectClaimToMapNode } from "@avg/graph";
 import validResponseFixture from "../../../tests/fixtures/avg-response/valid.json";
@@ -26,6 +32,64 @@ import validResponseFixture from "../../../tests/fixtures/avg-response/valid.jso
 describe("api app smoke surface", () => {
   it("exposes health status", () => {
     expect(health()).toEqual({ status: "ok", service: "avg-api" });
+  });
+
+  it("validates API runtime config before the server starts", () => {
+    expect(
+      createApiRuntimeConfig(
+        {},
+        {
+          AVG_API_REQUEST_TIMEOUT_MS: "2500",
+          AVG_API_REQUEST_BODY_LIMIT_BYTES: "64000",
+          AVG_API_LOG_DIRECTORY: ".avg-logs-test"
+        }
+      )
+    ).toEqual({
+      requestTimeoutMs: 2500,
+      requestBodyLimitBytes: 64000,
+      logDirectory: ".avg-logs-test"
+    });
+
+    expect(() =>
+      createApiRuntimeConfig(
+        {},
+        {
+          AVG_API_REQUEST_TIMEOUT_MS: "0",
+          AVG_API_REQUEST_BODY_LIMIT_BYTES: "64000",
+          AVG_API_LOG_DIRECTORY: ".avg-logs-test"
+        }
+      )
+    ).toThrow("AVG_API_REQUEST_TIMEOUT_MS must be a positive integer.");
+  });
+
+  it("keeps lab file paths inside the configured workspace boundary", () => {
+    const resolved = resolveLabRelativePath("E:/CODEX/avg-codex-lab", "apps/api/src/index.ts");
+
+    expect(resolved.absolutePath).toContain("apps");
+    expect(() =>
+      resolveLabRelativePath("E:/CODEX/avg-codex-lab", "../../etc/passwd")
+    ).toThrow("Path traversal outside the AVG lab boundary is not allowed.");
+    expect(() =>
+      resolveLabRelativePath("E:/CODEX/avg-codex-lab", "E:/Windows/System32/drivers/etc/hosts")
+    ).toThrow("Absolute paths are not allowed");
+  });
+
+  it("writes API error context into a local log file without exposing it in responses", () => {
+    const tempRoot = mkdtempSync(".avg-api-log-");
+
+    try {
+      writeApiErrorLog(new Error("private traceback context"), {
+        requestTimeoutMs: 1000,
+        requestBodyLimitBytes: 1000,
+        logDirectory: tempRoot
+      });
+
+      const logPath = `${tempRoot}\\api-errors.ndjson`;
+      expect(existsSync(logPath)).toBe(true);
+      expect(readFileSync(logPath, "utf8")).toContain("private traceback context");
+    } finally {
+      rmSync(tempRoot, { recursive: true, force: true });
+    }
   });
 
   it("validates claim request bodies through the contract validator", () => {
@@ -308,12 +372,94 @@ describe("api app smoke surface", () => {
 
     expect(emptySearch.statusCode).toBe(404);
     expect(JSON.parse(emptySearch.body)).toMatchObject({
+      status: "error",
       code: "RETRIEVAL_NO_EVIDENCE",
       details: {
         hits: [],
         retrieval_confidence: "none"
       }
     });
+  });
+
+  it("rejects traversal-like route ids before they reach project lookup", () => {
+    const response = handleGroundedProjectDialoguePageRoute(
+      "POST",
+      "/projects/..%2F..%2Fetc%2Fpasswd/retrieval/search",
+      JSON.stringify({ query: "anything" })
+    );
+
+    expect(response.statusCode).toBe(400);
+    expect(JSON.parse(response.body)).toMatchObject({
+      status: "error",
+      code: "INVALID_ROUTE_ID"
+    });
+  });
+
+  it("enforces HTTP body limits with a safe error envelope", async () => {
+    const tempRoot = mkdtempSync(".avg-api-limit-log-");
+    const server = createApiServer({
+      config: {
+        requestTimeoutMs: 1000,
+        requestBodyLimitBytes: 8,
+        logDirectory: tempRoot
+      }
+    });
+
+    try {
+      await new Promise<void>((resolvePromise) => server.listen(0, resolvePromise));
+      const address = server.address();
+      if (address === null || typeof address === "string") {
+        throw new Error("Expected an ephemeral local server port.");
+      }
+
+      const response = await new Promise<{ statusCode: number; body: string }>((resolvePromise, rejectPromise) => {
+        const clientRequest = request(
+          {
+            hostname: "127.0.0.1",
+            port: address.port,
+            path: "/projects/project_001/retrieval/search",
+            method: "POST",
+            headers: {
+              "content-type": "application/json"
+            }
+          },
+          (clientResponse) => {
+            const chunks: Buffer[] = [];
+            clientResponse.on("data", (chunk: Buffer) => chunks.push(chunk));
+            clientResponse.on("end", () => {
+              resolvePromise({
+                statusCode: clientResponse.statusCode ?? 0,
+                body: Buffer.concat(chunks).toString("utf8")
+              });
+            });
+          }
+        );
+
+        clientRequest.on("error", rejectPromise);
+        clientRequest.end(JSON.stringify({ query: "too large for the configured test limit" }));
+      });
+
+      expect(response.statusCode).toBe(413);
+      expect(JSON.parse(response.body)).toMatchObject({
+        status: "error",
+        code: "REQUEST_BODY_TOO_LARGE",
+        message: "The request body exceeds the configured API limit."
+      });
+      expect(response.body).not.toContain("Request body too large.");
+      expect(existsSync(`${tempRoot}\\api-errors.ndjson`)).toBe(true);
+    } finally {
+      await new Promise<void>((resolvePromise, rejectPromise) => {
+        server.close((error) => {
+          if (error) {
+            rejectPromise(error);
+            return;
+          }
+
+          resolvePromise();
+        });
+      });
+      rmSync(tempRoot, { recursive: true, force: true });
+    }
   });
 
   it("materializes map snapshots from projections and snapshots", () => {

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  createAndSaveWorkspaceState,
   createLocalProjectRecord,
   createLocalSessionRecord,
   createLocalWorkspaceState,
@@ -7,13 +8,18 @@ import {
   createDialogueMessageSurface,
   createDialogueMessageSurfaceFromGroundedReport,
   createDialogueFlowPage,
+  createStructuredDialogueSurface,
   createConceptMapShell,
   createProjectSessionShell,
   createStructuredResponseDetailsPanel,
   createWorkspaceShell,
+  createWorkspaceStateFromInput,
+  loadWorkspaceState,
   openLocalWorkspaceProject,
+  openSavedWorkspaceState,
   materializeConceptMapSnapshot,
   parseWorkspaceState,
+  resetWorkspaceState,
   renderConceptMapShell,
   renderDialogueMessageSurface,
   renderDialogueMessageSurfaceFromGroundedReport,
@@ -23,13 +29,35 @@ import {
   renderWorkspaceShell,
   renderGroundedResponseDetailsPanel,
   renderStructuredResponseDetailsPanel,
+  renderStructuredDialogueSurface,
   renderShellTitle,
   selectWorkspaceSurface,
   serializeWorkspaceState,
+  saveWorkspaceState,
+  submitRawThoughtToStructuredDialogue,
+  workspaceStateStorageKey,
+  type WorkspaceStoragePort,
 } from "../src/index";
 import { validateAvgResponse } from "@avg/schemas";
 import { projectClaimToMapNode } from "@avg/graph";
 import { composeGroundedResponse } from "@avg/validation";
+
+function createMemoryStorage(): WorkspaceStoragePort & { values: Map<string, string> } {
+  const values = new Map<string, string>();
+
+  return {
+    values,
+    getItem(key: string) {
+      return values.get(key) ?? null;
+    },
+    setItem(key: string, value: string) {
+      values.set(key, value);
+    },
+    removeItem(key: string) {
+      values.delete(key);
+    },
+  };
+}
 
 describe("web app smoke surface", () => {
   it("exposes a stable shell title", () => {
@@ -165,6 +193,79 @@ describe("web app smoke surface", () => {
     expect(parseWorkspaceState(serializeWorkspaceState(state))).toEqual(state);
   });
 
+  it("rejects serialized workspace state outside the local MVP-5 contract", () => {
+    expect(() =>
+      parseWorkspaceState(
+        JSON.stringify({
+          kind: "workspace-state",
+          project: {
+            id: "project-cloud",
+            title: "Cloud-looking project",
+            accessMode: "account",
+            createdAt: "2026-05-20T10:00:00.000Z",
+          },
+          session: {
+            id: "session-cloud",
+            projectId: "project-cloud",
+            title: "Cloud-looking session",
+            createdAt: "2026-05-20T10:00:00.000Z",
+          },
+          selectedSurface: "dialogue",
+          contractVersion: "mvp-5",
+          localOnly: true,
+        }),
+      ),
+    ).toThrow("Serialized workspace state does not match the MVP-5 local contract.");
+  });
+
+  it("creates, saves, opens and resets browser-local workspace state", () => {
+    const storage = createMemoryStorage();
+    const created = createAndSaveWorkspaceState(storage, {
+      projectTitle: "Local evidence map",
+      sessionTitle: "Browser pass",
+      projectId: "project-local-evidence",
+      sessionId: "session-browser-pass",
+      createdAt: "2026-05-20T10:00:00.000Z",
+    });
+
+    expect(storage.values.has(workspaceStateStorageKey)).toBe(true);
+    expect(loadWorkspaceState(storage)).toEqual(created);
+
+    const fallback = createWorkspaceStateFromInput({
+      projectTitle: "Fallback project",
+      projectId: "project-fallback",
+      sessionId: "session-fallback",
+    });
+
+    expect(openSavedWorkspaceState(storage, fallback)).toEqual(created);
+
+    resetWorkspaceState(storage);
+
+    expect(loadWorkspaceState(storage)).toBeUndefined();
+    expect(openSavedWorkspaceState(storage, fallback)).toEqual(fallback);
+    expect(loadWorkspaceState(storage)).toEqual(fallback);
+  });
+
+  it("clears invalid saved workspace state instead of opening cross-project drift", () => {
+    const storage = createMemoryStorage();
+    const state = createLocalWorkspaceState("Drift guard", "Stored pass", {
+      projectId: "project-drift",
+      sessionId: "session-drift",
+    });
+
+    saveWorkspaceState(storage, state);
+    storage.setItem(
+      workspaceStateStorageKey,
+      JSON.stringify({
+        ...state,
+        session: { ...state.session, projectId: "other-project" },
+      }),
+    );
+
+    expect(loadWorkspaceState(storage)).toBeUndefined();
+    expect(storage.values.has(workspaceStateStorageKey)).toBe(false);
+  });
+
   it("renders the MVP-5 workspace shell as the first product screen", () => {
     const state = createLocalWorkspaceState("Structured thinking", "Opening pass", {
       projectId: "project-702",
@@ -192,6 +293,204 @@ describe("web app smoke surface", () => {
     expect(page).toContain("scope, status, risk and boundary");
     expect(page).toContain("Technical details");
     expect(page).toContain("mvp-5");
+  });
+
+  it("creates an empty structured dialogue surface before the first thought", () => {
+    const surface = createStructuredDialogueSurface({
+      projectId: "project-7",
+      sessionId: "session-3",
+    });
+
+    expect(surface.kind).toBe("structured-dialogue-surface");
+    expect(surface.status).toBe("empty");
+    expect(surface.messages).toEqual([]);
+    expect(surface.emptyStateBody).toContain("contract-shaped response");
+  });
+
+  it("keeps loading state visible after a raw thought is submitted", () => {
+    const surface = createStructuredDialogueSurface({
+      projectId: "project-7",
+      sessionId: "session-3",
+      rawThought: "Maps are useful but not reality.",
+      isLoading: true,
+    });
+
+    expect(surface.status).toBe("loading");
+    expect(surface.messages).toEqual([
+      { id: "msg-1", role: "user", content: "Maps are useful but not reality." },
+    ]);
+
+    const rendered = renderStructuredDialogueSurface({
+      projectId: "project-7",
+      sessionId: "session-3",
+      rawThought: "Maps are useful but not reality.",
+      isLoading: true,
+    });
+
+    expect(rendered).toContain('data-dialogue-status="loading"');
+    expect(rendered).toContain('aria-label="dialogue-loading"');
+    expect(rendered).toContain("Structuring response");
+  });
+
+  it("submits a raw thought and renders structured response details as the assistant output", () => {
+    const response = {
+      id: "response-703",
+      project_id: "project-7",
+      session_id: "session-3",
+      message_id: "msg-2",
+      summary: "A map can guide the discussion without becoming Reality.",
+      scope: "dialogue surface smoke path",
+      claim_status: "working_distinction",
+      language_mode: "operational_description",
+      validation_risk: "medium",
+      risk_markers: ["map_territory_boundary_visible"],
+      map_territory_boundary: "preserved",
+      next_action: "inspect the response details before extending the map",
+    } as const;
+
+    const surface = submitRawThoughtToStructuredDialogue(
+      "project-7",
+      "session-3",
+      "Maps are useful but not reality.",
+      response,
+    );
+
+    expect(surface.status).toBe("ready");
+    expect(surface.messages).toEqual([
+      { id: "msg-1", role: "user", content: "Maps are useful but not reality." },
+      { id: "msg-2", role: "assistant", content: "Structured AVG response" },
+    ]);
+    expect(surface.responseDetails?.response).toEqual(response);
+
+    const rendered = renderStructuredDialogueSurface({
+      projectId: "project-7",
+      sessionId: "session-3",
+      rawThought: "Maps are useful but not reality.",
+      response,
+    });
+
+    expect(rendered).toContain('data-surface="structured-dialogue-surface"');
+    expect(rendered).toContain('data-dialogue-status="ready"');
+    expect(rendered).toContain('data-panel="structured-response-details-panel"');
+    expect(rendered).toContain("Claim status");
+    expect(rendered).toContain("Language mode");
+    expect(rendered).toContain("Validation risk");
+    expect(rendered).toContain("Map/territory boundary");
+    expect(rendered).toContain("map_territory_boundary_visible");
+    expect(rendered).toContain("Structured AVG response");
+  });
+
+  it("fails visibly when the structured response violates the schema", () => {
+    const surface = submitRawThoughtToStructuredDialogue(
+      "project-7",
+      "session-3",
+      "Untyped output should not render as an answer.",
+      {
+        id: "response-invalid",
+        project_id: "project-7",
+        session_id: "session-3",
+        message_id: "msg-2",
+        summary: "Missing structured fields",
+      },
+    );
+
+    expect(surface.status).toBe("error");
+    expect(surface.error?.code).toBe("invalid_structured_response");
+    expect(surface.error?.validation?.valid).toBe(false);
+    expect(surface.error?.boundaryNotes.join(" ")).toContain("must not display invalid");
+
+    const rendered = renderStructuredDialogueSurface({
+      projectId: "project-7",
+      sessionId: "session-3",
+      rawThought: "Untyped output should not render as an answer.",
+      response: {
+        id: "response-invalid",
+        project_id: "project-7",
+        session_id: "session-3",
+        message_id: "msg-2",
+        summary: "Missing structured fields",
+      },
+    });
+
+    expect(rendered).toContain('data-dialogue-status="error"');
+    expect(rendered).toContain('data-error-code="invalid_structured_response"');
+    expect(rendered).not.toContain('data-panel="structured-response-details-panel"');
+  });
+
+  it("fails visibly when a response belongs to a different project or session", () => {
+    const response = {
+      id: "response-drift",
+      project_id: "other-project",
+      session_id: "session-3",
+      message_id: "msg-2",
+      summary: "This response should not cross project boundaries.",
+      scope: "dialogue drift guard",
+      claim_status: "boundary_statement",
+      language_mode: "operational_description",
+      validation_risk: "high",
+      risk_markers: ["project_session_drift"],
+      map_territory_boundary: "unclear",
+      next_action: "stop rendering this response in the active dialogue",
+    } as const;
+
+    const surface = createStructuredDialogueSurface({
+      projectId: "project-7",
+      sessionId: "session-3",
+      rawThought: "Use the active project only.",
+      response,
+    });
+
+    expect(validateAvgResponse(response).valid).toBe(true);
+    expect(surface.status).toBe("error");
+    expect(surface.error?.code).toBe("response_project_session_mismatch");
+    expect(surface.error?.boundaryNotes.join(" ")).toContain("does not match active");
+  });
+
+  it("rejects an empty raw thought before response generation", () => {
+    const surface = submitRawThoughtToStructuredDialogue(
+      "project-7",
+      "session-3",
+      "   ",
+    );
+
+    expect(surface.status).toBe("error");
+    expect(surface.error?.code).toBe("empty_raw_thought");
+    expect(surface.error?.boundaryNotes.join(" ")).toContain("should not enter the dialogue map");
+  });
+
+  it("renders recovered structured response details without hiding the prior error", () => {
+    const recoveredFrom = {
+      code: "dialogue_runtime_error" as const,
+      message: "The previous local dialogue adapter call failed.",
+      boundaryNotes: ["Recovered output should keep the failed boundary inspectable."],
+    };
+    const response = {
+      id: "response-recovered",
+      project_id: "project-7",
+      session_id: "session-3",
+      message_id: "msg-2",
+      summary: "Recovered response preserves the map boundary.",
+      scope: "dialogue recovered state",
+      claim_status: "boundary_statement",
+      language_mode: "operational_description",
+      validation_risk: "low",
+      risk_markers: ["recovered_from_adapter_error"],
+      map_territory_boundary: "preserved",
+      next_action: "continue only after inspecting the recovered details",
+    } as const;
+
+    const rendered = renderStructuredDialogueSurface({
+      projectId: "project-7",
+      sessionId: "session-3",
+      rawThought: "Recover this thought.",
+      response,
+      recoveredFrom,
+    });
+
+    expect(rendered).toContain('data-dialogue-status="recovered"');
+    expect(rendered).toContain('aria-label="dialogue-recovered-state"');
+    expect(rendered).toContain('data-recovered-from="dialogue_runtime_error"');
+    expect(rendered).toContain('data-panel="structured-response-details-panel"');
   });
 
   it("creates a minimal dialogue message surface", () => {

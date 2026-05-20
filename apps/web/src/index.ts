@@ -4,7 +4,13 @@ import {
   type ClaimProjection,
   type GraphSnapshot
 } from "@avg/graph";
-import type { AvgMapEdge, AvgMapNode, AvgStructuredResponse } from "@avg/schemas";
+import {
+  validateAvgResponse,
+  type AvgMapEdge,
+  type AvgMapNode,
+  type AvgStructuredResponse,
+  type ValidationResult,
+} from "@avg/schemas";
 import type {
   AvgGroundedResponse,
   GroundedResponseCompositionReport,
@@ -81,10 +87,71 @@ export type WorkspaceShell = {
   emptyStates: Record<WorkspaceSurface, { title: string; body: string }>;
 };
 
+export type WorkspaceStoragePort = Pick<
+  Storage,
+  "getItem" | "setItem" | "removeItem"
+>;
+
+export type WorkspaceLocalProjectInput = {
+  projectTitle: string;
+  sessionTitle?: string;
+  projectId?: string;
+  sessionId?: string;
+  createdAt?: string;
+};
+
 export type DialogueMessage = {
   id: string;
   role: "user" | "assistant";
   content: string;
+};
+
+export type StructuredDialogueStatus =
+  | "empty"
+  | "loading"
+  | "ready"
+  | "error"
+  | "recovered";
+
+export type StructuredDialogueError = {
+  code:
+    | "empty_raw_thought"
+    | "invalid_structured_response"
+    | "response_project_session_mismatch"
+    | "dialogue_runtime_error";
+  message: string;
+  boundaryNotes: string[];
+  validation?: ValidationResult;
+};
+
+export type StructuredDialogueSurfaceInput = {
+  projectId: string;
+  sessionId: string;
+  rawThought?: string;
+  messages?: DialogueMessage[];
+  response?: unknown;
+  isLoading?: boolean;
+  error?: StructuredDialogueError;
+  recoveredFrom?: StructuredDialogueError;
+};
+
+export type StructuredDialogueSurface = {
+  kind: "structured-dialogue-surface";
+  title: string;
+  projectId: string;
+  sessionId: string;
+  rawThought: string;
+  messages: DialogueMessage[];
+  status: StructuredDialogueStatus;
+  emptyStateTitle: string;
+  emptyStateBody: string;
+  loadingLabel: string;
+  composerLabel: string;
+  composerPlaceholder: string;
+  submitLabel: string;
+  responseDetails?: StructuredResponseDetailsPanel;
+  error?: StructuredDialogueError;
+  recoveredFrom?: StructuredDialogueError;
 };
 
 export type DialogueSurfaceGrounding = {
@@ -165,6 +232,70 @@ function indentMarkup(markup: string, indent: string): string[] {
   return markup.split("\n").map((line) => `${indent}${line}`);
 }
 
+function formatResponseSchemaNotes(errors: ValidationResult["errors"]): string[] {
+  if (errors.length === 0) {
+    return [];
+  }
+
+  return errors.map((error) => {
+    const location = error.instancePath.length > 0 ? error.instancePath : "/";
+    return `AVG structured response schema violation at ${location} (${error.keyword}).`;
+  });
+}
+
+function normalizeRawThought(value: string | undefined): string {
+  return value?.trim() ?? "";
+}
+
+function createUserMessageFromRawThought(rawThought: string): DialogueMessage {
+  return {
+    id: "msg-1",
+    role: "user",
+    content: rawThought,
+  };
+}
+
+function createAssistantMessageFromStructuredResponse(
+  response: AvgStructuredResponse,
+): DialogueMessage {
+  return {
+    id: response.message_id,
+    role: "assistant",
+    content: "Structured AVG response",
+  };
+}
+
+function createInvalidStructuredResponseError(
+  validation: ValidationResult,
+): StructuredDialogueError {
+  return {
+    code: "invalid_structured_response",
+    message:
+      "AVG could not render the assistant output because it is not a valid structured response.",
+    validation,
+    boundaryNotes: [
+      "The dialogue surface must not display invalid structured output as a normal assistant answer.",
+      ...formatResponseSchemaNotes(validation.errors),
+    ],
+  };
+}
+
+function createProjectSessionMismatchError(
+  response: AvgStructuredResponse,
+  projectId: string,
+  sessionId: string,
+): StructuredDialogueError {
+  return {
+    code: "response_project_session_mismatch",
+    message:
+      "AVG could not render this structured response inside the active project/session.",
+    boundaryNotes: [
+      `Response project/session (${response.project_id}/${response.session_id}) does not match active project/session (${projectId}/${sessionId}).`,
+      "Project/session drift must fail visibly so response details cannot cross workspace boundaries.",
+    ],
+  };
+}
+
 function isClaimProjection(value: ConceptMapSource): value is ClaimProjection {
   return "node" in value && !("nodes" in value);
 }
@@ -211,6 +342,8 @@ const workspaceEmptyStates: WorkspaceShell["emptyStates"] = {
     body: "Exports will preserve project id, session id, scope, risk markers and boundary notes.",
   },
 };
+
+export const workspaceStateStorageKey = "avg.mvp5.workspace-state";
 
 function normalizeLocalTitle(value: string, fallback: string): string {
   const normalized = value.trim();
@@ -318,6 +451,20 @@ export function createLocalWorkspaceState(
   return createWorkspaceState(project, session, options.selectedSurface ?? "dialogue");
 }
 
+export function createWorkspaceStateFromInput(
+  input: WorkspaceLocalProjectInput,
+): WorkspaceState {
+  return createLocalWorkspaceState(
+    input.projectTitle,
+    input.sessionTitle ?? "Working session",
+    {
+      ...(input.projectId !== undefined ? { projectId: input.projectId } : {}),
+      ...(input.sessionId !== undefined ? { sessionId: input.sessionId } : {}),
+      ...(input.createdAt !== undefined ? { createdAt: input.createdAt } : {}),
+    },
+  );
+}
+
 export function openLocalWorkspaceProject(
   project: LocalProjectRecord,
   session: LocalSessionRecord,
@@ -366,10 +513,117 @@ export function serializeWorkspaceState(state: WorkspaceState): string {
   return JSON.stringify(state);
 }
 
+function isLocalProjectRecord(value: unknown): value is LocalProjectRecord {
+  if (typeof value !== "object" || value === null) {
+    return false;
+  }
+
+  const project = value as Partial<LocalProjectRecord>;
+
+  return (
+    typeof project.id === "string" &&
+    typeof project.title === "string" &&
+    project.accessMode === "browser_local" &&
+    typeof project.createdAt === "string"
+  );
+}
+
+function isLocalSessionRecord(value: unknown): value is LocalSessionRecord {
+  if (typeof value !== "object" || value === null) {
+    return false;
+  }
+
+  const session = value as Partial<LocalSessionRecord>;
+
+  return (
+    typeof session.id === "string" &&
+    typeof session.projectId === "string" &&
+    typeof session.title === "string" &&
+    typeof session.createdAt === "string"
+  );
+}
+
+function isWorkspaceSurface(value: unknown): value is WorkspaceSurface {
+  return workspaceNavigationSurfaces.some((item) => item.surface === value);
+}
+
+function isSerializedWorkspaceState(value: unknown): value is WorkspaceState {
+  if (typeof value !== "object" || value === null) {
+    return false;
+  }
+
+  const state = value as Partial<WorkspaceState>;
+
+  return (
+    state.kind === "workspace-state" &&
+    isLocalProjectRecord(state.project) &&
+    isLocalSessionRecord(state.session) &&
+    isWorkspaceSurface(state.selectedSurface) &&
+    state.contractVersion === "mvp-5" &&
+    state.localOnly === true
+  );
+}
+
 export function parseWorkspaceState(serialized: string): WorkspaceState {
-  const value = JSON.parse(serialized) as WorkspaceState;
+  const value = JSON.parse(serialized) as unknown;
+
+  if (!isSerializedWorkspaceState(value)) {
+    throw new Error("Serialized workspace state does not match the MVP-5 local contract.");
+  }
 
   return createWorkspaceState(value.project, value.session, value.selectedSurface);
+}
+
+export function saveWorkspaceState(
+  storage: WorkspaceStoragePort,
+  state: WorkspaceState,
+  key = workspaceStateStorageKey,
+): WorkspaceState {
+  storage.setItem(key, serializeWorkspaceState(state));
+
+  return state;
+}
+
+export function loadWorkspaceState(
+  storage: WorkspaceStoragePort,
+  key = workspaceStateStorageKey,
+): WorkspaceState | undefined {
+  const serialized = storage.getItem(key);
+
+  if (serialized === null) {
+    return undefined;
+  }
+
+  try {
+    return parseWorkspaceState(serialized);
+  } catch {
+    storage.removeItem(key);
+
+    return undefined;
+  }
+}
+
+export function resetWorkspaceState(
+  storage: WorkspaceStoragePort,
+  key = workspaceStateStorageKey,
+): void {
+  storage.removeItem(key);
+}
+
+export function createAndSaveWorkspaceState(
+  storage: WorkspaceStoragePort,
+  input: WorkspaceLocalProjectInput,
+  key = workspaceStateStorageKey,
+): WorkspaceState {
+  return saveWorkspaceState(storage, createWorkspaceStateFromInput(input), key);
+}
+
+export function openSavedWorkspaceState(
+  storage: WorkspaceStoragePort,
+  fallback: WorkspaceState,
+  key = workspaceStateStorageKey,
+): WorkspaceState {
+  return loadWorkspaceState(storage, key) ?? saveWorkspaceState(storage, fallback, key);
 }
 
 export function renderWorkspaceShell(state: WorkspaceState): string {
@@ -458,6 +712,206 @@ export function renderProjectSessionPage(
     `    <p>${escapeHtml(shell.emptyStateBody)}</p>`,
     `  </section>`,
     `</main>`,
+  ].join("\n");
+}
+
+export function createStructuredDialogueSurface(
+  input: StructuredDialogueSurfaceInput,
+): StructuredDialogueSurface {
+  const rawThought = normalizeRawThought(input.rawThought);
+  const baseMessages = input.messages ?? [];
+  const baseSurface = {
+    kind: "structured-dialogue-surface" as const,
+    title: renderShellTitle(),
+    projectId: input.projectId,
+    sessionId: input.sessionId,
+    rawThought,
+    emptyStateTitle: "No dialogue yet",
+    emptyStateBody:
+      "Submit a raw thought. AVG will render only a contract-shaped response with scope, status, risk and boundary details.",
+    loadingLabel: "Structuring response",
+    composerLabel: "Raw thought",
+    composerPlaceholder: "Write the thought you want AVG to shape",
+    submitLabel: "Submit thought",
+  };
+
+  if (input.error !== undefined) {
+    return {
+      ...baseSurface,
+      messages: baseMessages,
+      status: "error",
+      error: input.error,
+    };
+  }
+
+  if (input.isLoading === true) {
+    return {
+      ...baseSurface,
+      messages:
+        rawThought.length > 0 && baseMessages.length === 0
+          ? [createUserMessageFromRawThought(rawThought)]
+          : baseMessages,
+      status: "loading",
+    };
+  }
+
+  if (input.response === undefined) {
+    return {
+      ...baseSurface,
+      messages: baseMessages,
+      status: "empty",
+    };
+  }
+
+  const validation = validateAvgResponse(input.response);
+
+  if (!validation.valid) {
+    return {
+      ...baseSurface,
+      messages:
+        rawThought.length > 0 && baseMessages.length === 0
+          ? [createUserMessageFromRawThought(rawThought)]
+          : baseMessages,
+      status: "error",
+      error: createInvalidStructuredResponseError(validation),
+    };
+  }
+
+  const response = input.response as AvgStructuredResponse;
+
+  if (response.project_id !== input.projectId || response.session_id !== input.sessionId) {
+    return {
+      ...baseSurface,
+      messages:
+        rawThought.length > 0 && baseMessages.length === 0
+          ? [createUserMessageFromRawThought(rawThought)]
+          : baseMessages,
+      status: "error",
+      error: createProjectSessionMismatchError(response, input.projectId, input.sessionId),
+    };
+  }
+
+  const messages =
+    baseMessages.length > 0
+      ? baseMessages
+      : [
+          ...(rawThought.length > 0 ? [createUserMessageFromRawThought(rawThought)] : []),
+          createAssistantMessageFromStructuredResponse(response),
+        ];
+
+  return {
+    ...baseSurface,
+    messages,
+    status: input.recoveredFrom === undefined ? "ready" : "recovered",
+    responseDetails: createStructuredResponseDetailsPanel(response),
+    ...(input.recoveredFrom !== undefined ? { recoveredFrom: input.recoveredFrom } : {}),
+  };
+}
+
+export function submitRawThoughtToStructuredDialogue(
+  projectId: string,
+  sessionId: string,
+  rawThought: string,
+  response?: unknown,
+): StructuredDialogueSurface {
+  const normalizedThought = normalizeRawThought(rawThought);
+
+  if (normalizedThought.length === 0) {
+    return createStructuredDialogueSurface({
+      projectId,
+      sessionId,
+      rawThought,
+      error: {
+        code: "empty_raw_thought",
+        message: "AVG needs a raw thought before it can build a structured response.",
+        boundaryNotes: [
+          "Empty input is not a claim, concept, metaphor or model and should not enter the dialogue map.",
+        ],
+      },
+    });
+  }
+
+  return createStructuredDialogueSurface({
+    projectId,
+    sessionId,
+    rawThought: normalizedThought,
+    response,
+  });
+}
+
+export function renderStructuredDialogueSurface(
+  input: StructuredDialogueSurfaceInput | StructuredDialogueSurface,
+): string {
+  const surface =
+    "kind" in input && input.kind === "structured-dialogue-surface"
+      ? input
+      : createStructuredDialogueSurface(input);
+  const messageItems = surface.messages.map(
+    (message) =>
+      `    <li data-message-id="${escapeHtml(message.id)}" data-message-role="${escapeHtml(message.role)}"><strong>${escapeHtml(message.role)}</strong><p>${escapeHtml(message.content)}</p></li>`,
+  );
+  const errorPanel =
+    surface.error === undefined
+      ? []
+      : [
+          `  <section aria-label="dialogue-error" data-error-code="${escapeHtml(surface.error.code)}">`,
+          `    <h3>${escapeHtml(surface.error.message)}</h3>`,
+          `    <ul>`,
+          ...surface.error.boundaryNotes.map((note) => `      <li>${escapeHtml(note)}</li>`),
+          `    </ul>`,
+          `  </section>`,
+        ];
+  const recoveredPanel =
+    surface.recoveredFrom === undefined
+      ? []
+      : [
+          `  <aside aria-label="dialogue-recovered-state" data-recovered-from="${escapeHtml(surface.recoveredFrom.code)}">`,
+          `    <strong>Recovered structured response</strong>`,
+          `    <p>${escapeHtml(surface.recoveredFrom.message)}</p>`,
+          `  </aside>`,
+        ];
+  const detailsPanel =
+    surface.responseDetails === undefined
+      ? []
+      : [
+          `  <section aria-label="structured-response-details">`,
+          ...indentMarkup(
+            renderStructuredResponseDetailsPanel(surface.responseDetails.response),
+            "    ",
+          ),
+          `  </section>`,
+        ];
+
+  return [
+    `<section data-surface="${surface.kind}" data-project-id="${escapeHtml(surface.projectId)}" data-session-id="${escapeHtml(surface.sessionId)}" data-dialogue-status="${escapeHtml(surface.status)}">`,
+    `  <header>`,
+    `    <p>${escapeHtml(surface.title)}</p>`,
+    `    <h2>Dialogue</h2>`,
+    `  </header>`,
+    `  <section aria-label="dialogue-thread">`,
+    ...(messageItems.length > 0
+      ? [`    <ol>`, ...messageItems, `    </ol>`]
+      : [
+          `    <strong>${escapeHtml(surface.emptyStateTitle)}</strong>`,
+          `    <p>${escapeHtml(surface.emptyStateBody)}</p>`,
+        ]),
+    `  </section>`,
+    ...(surface.status === "loading"
+      ? [
+          `  <section aria-label="dialogue-loading">`,
+          `    <p>${escapeHtml(surface.loadingLabel)}</p>`,
+          `  </section>`,
+        ]
+      : []),
+    ...errorPanel,
+    ...recoveredPanel,
+    ...detailsPanel,
+    `  <section aria-label="dialogue-composer">`,
+    `    <label>${escapeHtml(surface.composerLabel)}</label>`,
+    `    <textarea placeholder="${escapeHtml(surface.composerPlaceholder)}">${escapeHtml(surface.rawThought)}</textarea>`,
+    `    <button type="button" data-action="submit-raw-thought">${escapeHtml(surface.submitLabel)}</button>`,
+    `  </section>`,
+    `</section>`,
   ].join("\n");
 }
 

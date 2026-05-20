@@ -8,9 +8,11 @@ Minimal web dialogue shell for Sprint 2.
 - `createLocalProjectRecord(title, options?)` creates a browser-local project record.
 - `createLocalSessionRecord(projectId, title, options?)` creates a browser-local session record.
 - `createLocalWorkspaceState(projectTitle, sessionTitle?, options?)` creates the active MVP-5 workspace state.
+- `createWorkspaceStateFromInput(input)` normalizes project/session form input into a browser-local MVP-5 workspace state.
 - `openLocalWorkspaceProject(project, session, selectedSurface?)` opens an existing local project/session pair and rejects project/session drift.
 - `selectWorkspaceSurface(state, selectedSurface)` changes the active workspace surface without changing project/session identity.
 - `serializeWorkspaceState(state)` and `parseWorkspaceState(serialized)` provide the browser-local persistence boundary.
+- `saveWorkspaceState(storage, state)`, `loadWorkspaceState(storage)`, `resetWorkspaceState(storage)`, `createAndSaveWorkspaceState(storage, input)` and `openSavedWorkspaceState(storage, fallback)` wire the shell to browser `localStorage` or a compatible test adapter.
 - `createWorkspaceShell(state)` builds the MVP-5 workspace shell view model.
 - `renderWorkspaceShell(state)` renders the first-screen workspace shell with local-only status, navigation and compact technical details.
 - `createProjectSessionShell(projectId, sessionId)` builds the minimal project/session view model.
@@ -19,6 +21,9 @@ Minimal web dialogue shell for Sprint 2.
 - `renderDialogueMessageSurface(projectId, sessionId, messages, groundedResponse?)` renders a deterministic HTML message thread with explicit empty and populated states, plus an inline grounded panel when payload is present.
 - `createDialogueMessageSurfaceFromGroundedReport(projectId, sessionId, messages, report)` builds the message-thread view model from a grounded composition report.
 - `renderDialogueMessageSurfaceFromGroundedReport(projectId, sessionId, messages, report)` renders the dialogue surface directly from a grounded composition report.
+- `createStructuredDialogueSurface(input)` builds the MVP-5 dialogue state model for empty, loading, ready, error and recovered structured-response states.
+- `submitRawThoughtToStructuredDialogue(projectId, sessionId, rawThought, response?)` normalizes a user thought and fails visibly for empty input or invalid structured output.
+- `renderStructuredDialogueSurface(input)` renders the composer, dialogue thread, fail-visible validation errors and inspectable structured response details without turning the assistant output into plain prose.
 - `createDialogueFlowPage(projectId, sessionId, messages, groundedResponse?)` builds the full dialogue page shell and surface composition.
 - `renderDialogueFlowPage(projectId, sessionId, messages, groundedResponse?)` renders the full page with project/session framing and the dialogue surface.
 - `renderDialogueFlowPageFromGroundedReport(projectId, sessionId, messages, report)` renders the full page from a grounded composition report.
@@ -44,8 +49,10 @@ import {
   renderDialogueMessageSurfaceFromGroundedReport,
   renderDialogueFlowPageFromGroundedReport,
   renderProjectSessionPage,
+  renderStructuredDialogueSurface,
   renderStructuredResponseDetailsPanel,
   renderWorkspaceShell,
+  submitRawThoughtToStructuredDialogue,
 } from "@avg/web";
 
 const workspace = renderWorkspaceShell(
@@ -131,6 +138,22 @@ const reportDrivenMessages = renderDialogueMessageSurfaceFromGroundedReport(
       boundary_statement: "This answer is grounded only in registered project document snippets.",
     },
   },
+);
+const structuredDialogue = renderStructuredDialogueSurface(
+  submitRawThoughtToStructuredDialogue("project-7", "session-3", "raw thought", {
+    id: "response-7",
+    project_id: "project-7",
+    session_id: "session-3",
+    message_id: "msg-2",
+    summary: "A structured reply with explicit boundaries",
+    scope: "planning a dialogue slice",
+    claim_status: "boundary_statement",
+    language_mode: "operational_description",
+    validation_risk: "low",
+    risk_markers: ["no hidden claims"],
+    map_territory_boundary: "preserved",
+    next_action: "continue with the next message",
+  }),
 );
 const flowPage = renderDialogueFlowPageFromGroundedReport(
   "project-7",
@@ -227,5 +250,6 @@ The concept map shell keeps the boundary explicit and treats the graph as a work
 The workspace shell keeps project/session state browser-local and labels that boundary instead of implying accounts, shared workspace or production persistence.
 The grounded response panel keeps citations explicit and separates supported claims from interpretation and unsupported content.
 The dialogue surface can inline the grounded response payload so the same real grounded object that comes from the API is visible alongside the dialogue thread.
+The structured dialogue surface treats invalid assistant output as a visible schema or boundary error instead of rendering it as normal prose.
 The report-driven helper keeps the web flow aligned with grounded composition output rather than with ad hoc local panel assembly.
 The flow page helper composes the shell and dialogue surface into a single page-level HTML artifact.

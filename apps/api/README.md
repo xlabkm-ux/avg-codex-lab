@@ -16,7 +16,10 @@ Fastify API: sessions, projects, messages, tools, OpenAI orchestration.
 - `handleGroundedProjectDialoguePageRoute()` serves document registration over `POST /projects/{projectId}/documents`.
 - `handleGroundedProjectDialoguePageRoute()` serves retrieval search over `POST /projects/{projectId}/retrieval/search`.
 - `handleGroundedProjectDialoguePageRoute()` serves the grounded dialogue page over `POST /projects/{projectId}/dialogue/page`.
-- `createApiServer()` exposes a minimal Node HTTP server that uses the same route handler.
+- `createApiRuntimeConfig()` validates request timeout, body limit and local log directory settings at server startup.
+- `resolveLabRelativePath()` rejects absolute paths and `..` traversal outside the AVG lab boundary.
+- `writeApiErrorLog()` writes internal API error context to local NDJSON logs.
+- `createApiServer()` exposes a minimal Node HTTP server with request body timeout, body-size limit, safe JSON error envelopes and file-backed error logging.
 
 ## First Implementation Tasks
 
@@ -28,6 +31,27 @@ Fastify API: sessions, projects, messages, tools, OpenAI orchestration.
 ## Usage Notes
 
 The current API surface is intentionally in-memory and deterministic. It is a contract slice, not a production persistence layer.
+
+### Runtime Safety
+
+The Node HTTP server has explicit runtime limits:
+
+- `AVG_API_REQUEST_TIMEOUT_MS` defaults to `15000`.
+- `AVG_API_REQUEST_BODY_LIMIT_BYTES` defaults to `1000000`.
+- `AVG_API_LOG_DIRECTORY` defaults to `.avg-logs`.
+
+Route project ids reject traversal-like segments before project lookup. User-provided filesystem paths must pass `resolveLabRelativePath(rootDir, requestedPath)` before any file access is added to the API or retrieval layers.
+
+Internal server failures are logged to `api-errors.ndjson` under the configured local log directory. Client responses use a safe envelope:
+
+```json
+{
+  "status": "error",
+  "code": "INTERNAL_ERROR",
+  "message": "AVG hit an internal API failure. Try again later.",
+  "details": {}
+}
+```
 
 ### Document Registration
 
