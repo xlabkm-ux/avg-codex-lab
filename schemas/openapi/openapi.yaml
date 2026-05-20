@@ -1,0 +1,29 @@
+openapi: 3.1.0
+info:
+  title: AVG API
+  version: 0.1.0
+paths:
+  /health:
+    get:
+      summary: Health check
+      responses:
+        "200":
+          description: OK
+  /projects:
+    post:
+      summary: Create project
+      responses:
+        "201":
+          description: Project created
+  /sessions/{sessionId}/messages:
+    post:
+      summary: Send message to AVG dialogue session
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: AVG response

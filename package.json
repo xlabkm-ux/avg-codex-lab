@@ -1,0 +1,37 @@
+{
+  "name": "avg-codex-lab",
+  "private": true,
+  "version": "0.1.0",
+  "packageManager": "pnpm@9.15.0",
+  "scripts": {
+    "dev": "turbo dev",
+    "build": "turbo build",
+    "lint": "turbo lint",
+    "typecheck": "turbo typecheck",
+    "test": "turbo test",
+    "test:unit": "turbo test:unit",
+    "test:integration": "turbo test:integration",
+    "test:contract": "turbo test:contract",
+    "test:e2e": "playwright test",
+    "test:visual": "turbo test:visual",
+    "test:a11y": "turbo test:a11y",
+    "test:security": "turbo test:security",
+    "test:ai": "turbo test:ai",
+    "test:no-fairy-tale": "turbo test:no-fairy-tale",
+    "test:prompt-regression": "turbo test:prompt-regression",
+    "validate:schemas": "turbo validate:schemas",
+    "eval": "turbo eval",
+    "format": "prettier --write .",
+    "clean": "turbo clean && rm -rf node_modules"
+  },
+  "devDependencies": {
+    "turbo": "latest",
+    "typescript": "latest",
+    "prettier": "latest",
+    "eslint": "latest",
+    "vitest": "latest",
+    "playwright": "latest",
+    "ajv": "latest",
+    "zod": "latest"
+  }
+}
