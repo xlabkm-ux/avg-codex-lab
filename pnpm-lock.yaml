@@ -38,15 +38,28 @@ importers:
 
   apps/api:
     dependencies:
+      '@avg/schemas':
+        specifier: workspace:*
+        version: link:../../packages/avg-schemas
       '@avg/validation':
         specifier: workspace:*
         version: link:../../packages/avg-validation
 
   apps/realtime-gateway: {}
 
-  apps/web: {}
+  apps/web:
+    dependencies:
+      '@avg/schemas':
+        specifier: workspace:*
+        version: link:../../packages/avg-schemas
 
   apps/worker: {}
+
+  packages/avg-agents:
+    dependencies:
+      '@avg/schemas':
+        specifier: workspace:*
+        version: link:../avg-schemas
 
   packages/avg-evals: {}
 
@@ -56,11 +69,15 @@ importers:
         specifier: workspace:*
         version: link:../avg-schemas
 
+  packages/avg-openai: {}
+
   packages/avg-schemas:
     dependencies:
       ajv:
         specifier: 8.20.0
         version: 8.20.0
+
+  packages/avg-testkit: {}
 
   packages/avg-validation:
     dependencies:

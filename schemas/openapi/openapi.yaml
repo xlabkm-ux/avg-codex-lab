@@ -27,3 +27,11 @@ paths:
       responses:
         "200":
           description: AVG response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AvgStructuredResponse"
+components:
+  schemas:
+    AvgStructuredResponse:
+      $ref: "../json-schema/avg-response.schema.json"

@@ -13,8 +13,13 @@ See `.codex/agent-registry.md`.
 - Contract tests for public schemas.
 - README updated when public behavior changes.
 
-## First Implementation Tasks
+## Current Public API
 
-1. Create `src/index.ts`.
-2. Add package-level tests.
-3. Export typed public API only.
+- `routeDialogueMode()` selects the runtime mode for an instruction.
+- `composeStructuredResponse()` builds a contract-valid AVG response object.
+
+## Sprint Task
+
+Current implementation is aligned to Sprint 1 `AVG-104`: mode router and response composer.
+
+The package stays pure and does not call providers or depend on app code.

@@ -8,7 +8,7 @@ Agent execution model: `.codex/agent-execution-matrix.md`.
 
 ## Epic AVG-MVP-0: Repository Operating System
 
-Status: approved for execution.
+Status: completed.
 
 Goal: make the project operable by Codex agents.
 
@@ -20,8 +20,13 @@ Deliverables:
 - package skeleton;
 - initial schemas;
 - CI skeleton.
-- package configs and working root checks.
+- package configs and working root checks;
 - first task cards for MVP-1 and MVP-2.
+
+Completion notes:
+
+- Sprint 0 tasks AVG-001 through AVG-005 are done.
+- Root checks and schema validation pass.
 
 ## Epic AVG-MVP-1: Dialogue Core
 

@@ -71,6 +71,30 @@ export interface AvgMapEdge {
   constraints?: string[];
 }
 
+export const dialogueValidationRisks = ["low", "medium", "high", "critical"] as const;
+
+export type DialogueValidationRisk = (typeof dialogueValidationRisks)[number];
+
+export const mapTerritoryBoundaryStates = ["preserved", "unclear", "violated"] as const;
+
+export type MapTerritoryBoundaryState = (typeof mapTerritoryBoundaryStates)[number];
+
+export interface AvgStructuredResponse {
+  id: string;
+  project_id: string;
+  session_id: string;
+  message_id: string;
+  summary: string;
+  scope: string;
+  claim_status: ClaimStatus;
+  language_mode: LanguageMode;
+  validation_risk: DialogueValidationRisk;
+  risk_markers: string[];
+  map_territory_boundary: MapTerritoryBoundaryState;
+  next_action: string;
+  artifacts?: string[];
+}
+
 export interface ValidationResult {
   valid: boolean;
   errors: ErrorObject[];
@@ -86,10 +110,12 @@ function loadSchema(pathFromRepoRoot: string): AnySchema {
 export const claimSchema = loadSchema("schemas/json-schema/claim.schema.json");
 export const mapNodeSchema = loadSchema("schemas/json-schema/map-node.schema.json");
 export const mapEdgeSchema = loadSchema("schemas/json-schema/map-edge.schema.json");
+export const avgResponseSchema = loadSchema("schemas/json-schema/avg-response.schema.json");
 
 const claimValidator = ajv.compile<AvgClaim>(claimSchema);
 const mapNodeValidator = ajv.compile<AvgMapNode>(mapNodeSchema);
 const mapEdgeValidator = ajv.compile<AvgMapEdge>(mapEdgeSchema);
+const avgResponseValidator = ajv.compile<AvgStructuredResponse>(avgResponseSchema);
 
 function runValidator<T>(validator: ValidateFunction<T>, value: unknown): ValidationResult {
   const valid = validator(value);
@@ -111,6 +137,14 @@ export function validateMapEdge(value: unknown): ValidationResult {
   return runValidator(mapEdgeValidator, value);
 }
 
+export function validateAvgResponse(value: unknown): ValidationResult {
+  return runValidator(avgResponseValidator, value);
+}
+
 export function isAvgClaim(value: unknown): value is AvgClaim {
   return validateClaim(value).valid;
+}
+
+export function isAvgStructuredResponse(value: unknown): value is AvgStructuredResponse {
+  return validateAvgResponse(value).valid;
 }

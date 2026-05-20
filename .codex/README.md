@@ -6,6 +6,7 @@ It contains:
 
 - mission and principles;
 - agent roles;
+- sprint execution protocol;
 - task protocol;
 - branch/review/conflict protocols;
 - context packs;

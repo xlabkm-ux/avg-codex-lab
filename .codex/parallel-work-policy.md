@@ -2,13 +2,16 @@
 
 ## Main Rule
 
-One agent, one task, one branch, one PR.
+One agent, one approved sprint task, one branch, one PR.
+
+Agents may only work on items already approved in the sprint backlog and agent plan.
+If a task is not in the plan, it is not parallel-safe, even if it looks independent.
 
 ## Parallel Safety Levels
 
 ### GREEN
 
-Independent task. Safe to run in parallel.
+Independent task. Safe to run in parallel only when it is already present in the approved sprint plan.
 
 Examples:
 
@@ -58,7 +61,7 @@ Examples:
 2. Identify files and contracts in conflict.
 3. Architect Agent decides split/merge.
 4. One agent becomes owner.
-5. Other agent rebases after merge.
+5. Other agents rebase after merge.
 
 ## Priority Order
 

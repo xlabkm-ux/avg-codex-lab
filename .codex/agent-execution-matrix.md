@@ -2,9 +2,14 @@
 
 This matrix defines how agents execute the MVP-0 to MVP-2 plan.
 
+Sprint order, active sprint selection and task sequencing are defined in `.codex/sprint-execution-protocol.md`.
+
 ## Operating Rules
 
 - One agent, one task, one branch, one PR.
+- Agents must execute only tasks that exist in the approved sprint backlog and active agent plan.
+- If no approved task is assigned, the agent must stop and request alignment instead of choosing new work.
+- If requested work is outside the current sprint plan, the plan must be updated before implementation starts.
 - Contract work is sequential.
 - Implementation work is parallel only after contracts are stable.
 - Red and black tasks require explicit owner approval before parallel work starts.
@@ -72,6 +77,7 @@ Rule: release gates can block any PR.
 Before another agent continues a task, the current agent must provide:
 
 - task id;
+- sprint id;
 - branch name;
 - files changed;
 - contracts touched;

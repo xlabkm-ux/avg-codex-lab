@@ -12,3 +12,8 @@ See `.codex/agent-registry.md`.
 - TypeScript exports must preserve claim status, language mode, scope and map/territory boundaries.
 - Contract tests must cover valid and invalid fixtures.
 
+## Current Contract Surface
+
+- `claim.schema.json` validates AVG claims.
+- `map-node.schema.json` and `map-edge.schema.json` validate map artifacts.
+- `avg-response.schema.json` validates the Sprint 1 structured dialogue response.

@@ -1,6 +1,6 @@
 # packages/avg-testkit
 
-Testing utilities, mocks, fixtures and fake providers.
+Typed test helpers for fixtures, fixture loading and reusable QA utilities.
 
 ## Ownership
 
@@ -13,8 +13,8 @@ See `.codex/agent-registry.md`.
 - Contract tests for public schemas.
 - README updated when public behavior changes.
 
-## First Implementation Tasks
+## Current Public API
 
-1. Create `src/index.ts`.
-2. Add package-level tests.
-3. Export typed public API only.
+- `testkitPackageBoundary` declares the package boundary as a skeleton only.
+- `resolveFixtureUrl()` resolves package-local fixture URLs.
+- `loadJsonFixture()` loads JSON fixtures for tests.

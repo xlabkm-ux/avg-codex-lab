@@ -13,8 +13,13 @@ See `.codex/agent-registry.md`.
 - Contract tests for public schemas.
 - README updated when public behavior changes.
 
-## First Implementation Tasks
+## Sprint Task
 
-1. Create `src/index.ts`.
-2. Add package-level tests.
-3. Export typed public API only.
+Current implementation is aligned to Sprint 1 `AVG-103`: OpenAI adapter boundary and normalized provider errors.
+
+The package stays provider-boundary only; it does not depend on app code.
+
+## Current Public API
+
+- `openAIAdapterBoundary` declares package ownership, supported capabilities and boundary status.
+- `normalizeOpenAIProviderError()` converts heterogeneous provider failures into stable AVG error codes.

@@ -37,6 +37,11 @@ pnpm test
 
 What can break?
 
+## Objective Blockers
+
+If any sprint task is not `done`, name the concrete blocker or remaining work here.
+If there is no objective blocker and checks pass, explain why the task is not being closed.
+
 ## Rollback
 
 How do we revert?
