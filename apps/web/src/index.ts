@@ -24,6 +24,63 @@ export type ProjectSessionShell = {
   emptyStateBody: string;
 };
 
+export type WorkspaceSurface =
+  | "dialogue"
+  | "documents"
+  | "retrieval"
+  | "claim-review"
+  | "map"
+  | "artifacts";
+
+export type WorkspaceNavigationItem = {
+  surface: WorkspaceSurface;
+  label: string;
+  active: boolean;
+};
+
+export type LocalProjectRecord = {
+  id: string;
+  title: string;
+  accessMode: "browser_local";
+  createdAt: string;
+};
+
+export type LocalSessionRecord = {
+  id: string;
+  projectId: string;
+  title: string;
+  createdAt: string;
+};
+
+export type WorkspaceState = {
+  kind: "workspace-state";
+  project: LocalProjectRecord;
+  session: LocalSessionRecord;
+  selectedSurface: WorkspaceSurface;
+  contractVersion: "mvp-5";
+  localOnly: true;
+};
+
+export type WorkspaceShell = {
+  kind: "workspace-shell";
+  title: string;
+  project: LocalProjectRecord;
+  session: LocalSessionRecord;
+  selectedSurface: WorkspaceSurface;
+  navigation: WorkspaceNavigationItem[];
+  localOnlyLabel: string;
+  localOnlyBoundary: string;
+  resetLabel: string;
+  createProjectLabel: string;
+  openProjectLabel: string;
+  technicalDetails: {
+    projectId: string;
+    sessionId: string;
+    contractVersion: "mvp-5";
+  };
+  emptyStates: Record<WorkspaceSurface, { title: string; body: string }>;
+};
+
 export type DialogueMessage = {
   id: string;
   role: "user" | "assistant";
@@ -119,6 +176,56 @@ function snapshotFromProjection(projection: ClaimProjection): GraphSnapshot {
   });
 }
 
+const workspaceNavigationSurfaces: Array<Pick<WorkspaceNavigationItem, "surface" | "label">> = [
+  { surface: "dialogue", label: "Dialogue" },
+  { surface: "documents", label: "Documents" },
+  { surface: "retrieval", label: "Retrieval" },
+  { surface: "claim-review", label: "Claim Review" },
+  { surface: "map", label: "Map" },
+  { surface: "artifacts", label: "Artifacts" },
+];
+
+const workspaceEmptyStates: WorkspaceShell["emptyStates"] = {
+  dialogue: {
+    title: "No dialogue yet",
+    body: "Start with a raw thought. AVG will keep scope, status, risk and boundary visible.",
+  },
+  documents: {
+    title: "No local documents",
+    body: "Register text or markdown as project-local evidence before using grounded retrieval.",
+  },
+  retrieval: {
+    title: "No retrieval query",
+    body: "Ask against registered project evidence; confidence is a risk signal, not proof.",
+  },
+  "claim-review": {
+    title: "No claims to inspect",
+    body: "Structured response claims will appear here with status, language mode and validation risk.",
+  },
+  map: {
+    title: "No working map yet",
+    body: "The concept map is a projection of session material, not Reality.",
+  },
+  artifacts: {
+    title: "No artifacts generated",
+    body: "Exports will preserve project id, session id, scope, risk markers and boundary notes.",
+  },
+};
+
+function normalizeLocalTitle(value: string, fallback: string): string {
+  const normalized = value.trim();
+
+  return normalized.length > 0 ? normalized : fallback;
+}
+
+function stableLocalId(prefix: string, value: string): string {
+  return `${prefix}-${normalizeLocalTitle(value, "untitled")
+    .toLowerCase()
+    .replaceAll(/[^a-z0-9]+/g, "-")
+    .replaceAll(/^-|-$/g, "")
+    .slice(0, 48)}`;
+}
+
 export function materializeConceptMapSnapshot(value: ConceptMapSource): GraphSnapshot {
   if (isClaimProjection(value)) {
     return snapshotFromProjection(value);
@@ -129,6 +236,183 @@ export function materializeConceptMapSnapshot(value: ConceptMapSource): GraphSna
 
 export function renderShellTitle(): string {
   return "AVG Codex Lab";
+}
+
+export function createLocalProjectRecord(
+  title: string,
+  options: { id?: string; createdAt?: string } = {},
+): LocalProjectRecord {
+  const normalizedTitle = normalizeLocalTitle(title, "Untitled project");
+
+  return {
+    id: options.id ?? stableLocalId("project", normalizedTitle),
+    title: normalizedTitle,
+    accessMode: "browser_local",
+    createdAt: options.createdAt ?? "local-session",
+  };
+}
+
+export function createLocalSessionRecord(
+  projectId: string,
+  title: string,
+  options: { id?: string; createdAt?: string } = {},
+): LocalSessionRecord {
+  const normalizedTitle = normalizeLocalTitle(title, "Working session");
+
+  return {
+    id: options.id ?? stableLocalId("session", `${projectId}-${normalizedTitle}`),
+    projectId,
+    title: normalizedTitle,
+    createdAt: options.createdAt ?? "local-session",
+  };
+}
+
+export function createWorkspaceState(
+  project: LocalProjectRecord,
+  session: LocalSessionRecord,
+  selectedSurface: WorkspaceSurface = "dialogue",
+): WorkspaceState {
+  if (session.projectId !== project.id) {
+    throw new Error("Session project id must match the active project id.");
+  }
+
+  return {
+    kind: "workspace-state",
+    project,
+    session,
+    selectedSurface,
+    contractVersion: "mvp-5",
+    localOnly: true,
+  };
+}
+
+export function createLocalWorkspaceState(
+  projectTitle: string,
+  sessionTitle = "Working session",
+  options: {
+    projectId?: string;
+    sessionId?: string;
+    createdAt?: string;
+    selectedSurface?: WorkspaceSurface;
+  } = {},
+): WorkspaceState {
+  const projectOptions: { id?: string; createdAt?: string } = {};
+  const sessionOptions: { id?: string; createdAt?: string } = {};
+
+  if (options.projectId !== undefined) {
+    projectOptions.id = options.projectId;
+  }
+
+  if (options.sessionId !== undefined) {
+    sessionOptions.id = options.sessionId;
+  }
+
+  if (options.createdAt !== undefined) {
+    projectOptions.createdAt = options.createdAt;
+    sessionOptions.createdAt = options.createdAt;
+  }
+
+  const project = createLocalProjectRecord(projectTitle, projectOptions);
+  const session = createLocalSessionRecord(project.id, sessionTitle, sessionOptions);
+
+  return createWorkspaceState(project, session, options.selectedSurface ?? "dialogue");
+}
+
+export function openLocalWorkspaceProject(
+  project: LocalProjectRecord,
+  session: LocalSessionRecord,
+  selectedSurface: WorkspaceSurface = "dialogue",
+): WorkspaceState {
+  return createWorkspaceState(project, session, selectedSurface);
+}
+
+export function selectWorkspaceSurface(
+  state: WorkspaceState,
+  selectedSurface: WorkspaceSurface,
+): WorkspaceState {
+  return {
+    ...state,
+    selectedSurface,
+  };
+}
+
+export function createWorkspaceShell(state: WorkspaceState): WorkspaceShell {
+  return {
+    kind: "workspace-shell",
+    title: renderShellTitle(),
+    project: state.project,
+    session: state.session,
+    selectedSurface: state.selectedSurface,
+    navigation: workspaceNavigationSurfaces.map((item) => ({
+      ...item,
+      active: item.surface === state.selectedSurface,
+    })),
+    localOnlyLabel: "Local only",
+    localOnlyBoundary:
+      "This workspace is browser-local for MVP-5. It does not imply an account, shared workspace or production persistence.",
+    resetLabel: "Reset local project",
+    createProjectLabel: "New local project",
+    openProjectLabel: "Open local project",
+    technicalDetails: {
+      projectId: state.project.id,
+      sessionId: state.session.id,
+      contractVersion: state.contractVersion,
+    },
+    emptyStates: workspaceEmptyStates,
+  };
+}
+
+export function serializeWorkspaceState(state: WorkspaceState): string {
+  return JSON.stringify(state);
+}
+
+export function parseWorkspaceState(serialized: string): WorkspaceState {
+  const value = JSON.parse(serialized) as WorkspaceState;
+
+  return createWorkspaceState(value.project, value.session, value.selectedSurface);
+}
+
+export function renderWorkspaceShell(state: WorkspaceState): string {
+  const shell = createWorkspaceShell(state);
+  const activeEmptyState = shell.emptyStates[shell.selectedSurface];
+  const navItems = shell.navigation.map(
+    (item) =>
+      `      <button type="button" data-surface="${escapeHtml(item.surface)}" aria-current="${item.active ? "page" : "false"}">${escapeHtml(item.label)}</button>`,
+  );
+
+  return [
+    `<main data-shell="${shell.kind}" data-project-id="${escapeHtml(shell.project.id)}" data-session-id="${escapeHtml(shell.session.id)}" data-local-only="true">`,
+    `  <header aria-label="workspace-status">`,
+    `    <p>${escapeHtml(shell.title)}</p>`,
+    `    <h1>${escapeHtml(shell.project.title)}</h1>`,
+    `    <p>${escapeHtml(shell.session.title)}</p>`,
+    `    <strong>${escapeHtml(shell.localOnlyLabel)}</strong>`,
+    `    <p>${escapeHtml(shell.localOnlyBoundary)}</p>`,
+    `    <button type="button" data-action="create-project">${escapeHtml(shell.createProjectLabel)}</button>`,
+    `    <button type="button" data-action="open-project">${escapeHtml(shell.openProjectLabel)}</button>`,
+    `    <button type="button" data-action="reset-project">${escapeHtml(shell.resetLabel)}</button>`,
+    `  </header>`,
+    `  <nav aria-label="workspace-surfaces">`,
+    ...navItems,
+    `  </nav>`,
+    `  <section aria-label="active-workspace-surface" data-active-surface="${escapeHtml(shell.selectedSurface)}">`,
+    `    <h2>${escapeHtml(activeEmptyState.title)}</h2>`,
+    `    <p>${escapeHtml(activeEmptyState.body)}</p>`,
+    `  </section>`,
+    `  <aside aria-label="workspace-detail">`,
+    `    <h2>Details</h2>`,
+    `    <p>Selected records, claims, citations, nodes, documents and artifacts will open here without clearing the active dialogue context.</p>`,
+    `  </aside>`,
+    `  <details>`,
+    `    <summary>Technical details</summary>`,
+    `    <dl>`,
+    `      <div><dt>Project id</dt><dd>${escapeHtml(shell.technicalDetails.projectId)}</dd></div>`,
+    `      <div><dt>Session id</dt><dd>${escapeHtml(shell.technicalDetails.sessionId)}</dd></div>`,
+    `      <div><dt>Contract version</dt><dd>${escapeHtml(shell.technicalDetails.contractVersion)}</dd></div>`,
+    `    </dl>`,
+    `  </details>`,
+    `</main>`,
+  ].join("\n");
 }
 
 export function createProjectSessionShell(

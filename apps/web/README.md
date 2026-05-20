@@ -5,6 +5,14 @@ Minimal web dialogue shell for Sprint 2.
 ## Current Surface
 
 - `renderShellTitle()` returns the stable app title.
+- `createLocalProjectRecord(title, options?)` creates a browser-local project record.
+- `createLocalSessionRecord(projectId, title, options?)` creates a browser-local session record.
+- `createLocalWorkspaceState(projectTitle, sessionTitle?, options?)` creates the active MVP-5 workspace state.
+- `openLocalWorkspaceProject(project, session, selectedSurface?)` opens an existing local project/session pair and rejects project/session drift.
+- `selectWorkspaceSurface(state, selectedSurface)` changes the active workspace surface without changing project/session identity.
+- `serializeWorkspaceState(state)` and `parseWorkspaceState(serialized)` provide the browser-local persistence boundary.
+- `createWorkspaceShell(state)` builds the MVP-5 workspace shell view model.
+- `renderWorkspaceShell(state)` renders the first-screen workspace shell with local-only status, navigation and compact technical details.
 - `createProjectSessionShell(projectId, sessionId)` builds the minimal project/session view model.
 - `renderProjectSessionPage(projectId, sessionId)` renders a deterministic HTML shell for smoke tests and later UI wiring.
 - `createDialogueMessageSurface(projectId, sessionId, messages, groundedResponse?)` builds the minimal message-thread view model and can carry a real grounded response payload.
@@ -29,6 +37,7 @@ The package intentionally stays framework-free for the first web slice. It gives
 
 ```ts
 import {
+  createLocalWorkspaceState,
   renderGroundedResponseDetailsPanel,
   renderConceptMapShell,
   renderDialogueMessageSurface,
@@ -36,8 +45,15 @@ import {
   renderDialogueFlowPageFromGroundedReport,
   renderProjectSessionPage,
   renderStructuredResponseDetailsPanel,
+  renderWorkspaceShell,
 } from "@avg/web";
 
+const workspace = renderWorkspaceShell(
+  createLocalWorkspaceState("Research project", "Opening session", {
+    projectId: "project-7",
+    sessionId: "session-3",
+  }),
+);
 const shell = renderProjectSessionPage("project-7", "session-3");
 const messages = renderDialogueMessageSurface("project-7", "session-3", [
   { id: "msg-1", role: "user", content: "raw thought" },
@@ -208,6 +224,7 @@ const conceptMap = renderConceptMapShell();
 ```
 
 The concept map shell keeps the boundary explicit and treats the graph as a working map, not Reality.
+The workspace shell keeps project/session state browser-local and labels that boundary instead of implying accounts, shared workspace or production persistence.
 The grounded response panel keeps citations explicit and separates supported claims from interpretation and unsupported content.
 The dialogue surface can inline the grounded response payload so the same real grounded object that comes from the API is visible alongside the dialogue thread.
 The report-driven helper keeps the web flow aligned with grounded composition output rather than with ad hoc local panel assembly.
