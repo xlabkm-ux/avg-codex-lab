@@ -18,7 +18,7 @@ Active sprint: `Sprint 4`
 
 Current gate:
 
-- `AVG-402` - claim safety and metaphor boundary evals
+- Sprint 4 complete; claim safety, metaphor boundary, validation API, validation panel and behavior docs are done
 
 Approved gate:
 
@@ -26,7 +26,7 @@ Approved gate:
 
 Execution rule:
 
-- do not start later Sprint 3 tasks before the current gate is `done`.
+- keep later milestone planning deferred until MVP-2 review is explicitly approved.
 
 ## Active Branches
 

@@ -24,7 +24,7 @@ Status legend:
 | Sprint 1: Backend Dialogue Slice | 5 / 5 done | all Sprint 1 tasks are done and validated |
 | Sprint 2: Web Dialogue Slice | 5 / 5 done | all Sprint 2 tasks are done and validated |
 | Sprint 3: Validation Core | 5 / 5 done | AVG-301, AVG-302, AVG-303, AVG-304 and AVG-305 are done |
-| Sprint 4: Validation UX/API | 1 / 5 active | AVG-402 claim safety eval targets are in progress |
+| Sprint 4: Validation UX/API | 5 / 5 done | claim-safety, metaphor boundary, validation API, validation panel and behavior docs are complete |
 
 ## Sprint 0: MVP-0 Repository Operating System
 
@@ -79,11 +79,11 @@ Current exit status: `done`.
 
 | Task | Owner | Status | Progress | Evidence / Next Step |
 |---|---|---|---:|---|
-| AVG-401 | Validation | ready | 0% | can start now that the validation core is complete |
-| AVG-402 | QA | in progress | 40% | claim-safety helper and fixture-backed tests are in place; finishing regression wiring |
-| AVG-403 | Backend | deferred | 0% | waits for validation API contract |
-| AVG-404 | Frontend | deferred | 0% | waits for validation API output |
-| AVG-405 | Docs | deferred | 0% | waits for behavior ledger and release notes |
+| AVG-401 | Validation | done | 100% | No Fairy Tale Gate is implemented in `packages/avg-evals` with package and root eval checks passing |
+| AVG-402 | QA | done | 100% | claim-safety and metaphor-boundary evals are implemented with fixture-backed checks and root eval gates passing |
+| AVG-403 | Backend | done | 100% | `validateClaimRequest` is exposed in `apps/api` and covered by the API smoke test suite |
+| AVG-404 | Frontend | done | 100% | structured validation output is rendered in `apps/web` through the details panel and smoke tests |
+| AVG-405 | Docs | done | 100% | behavior ledger and release notes capture the Sprint 4 validation and eval changes |
 
 ## Update Rules
 
