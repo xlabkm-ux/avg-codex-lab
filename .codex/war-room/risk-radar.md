@@ -2,13 +2,11 @@
 
 | Risk | Severity | Owner | Mitigation |
 |---|---:|---|---|
-| Prompt drift | high | Validation Agent | AI behavior ledger + prompt regression evals |
-| Shared schema conflict | high | Architect Agent | schema freeze windows |
-| Metaphor as fact | high | Validation Agent | No Fairy Tale Gate |
-| Over-complex MVP | medium | Product/Architect | enforce MVP milestones |
-| Retrieval hallucination | high | Retrieval/QA | source-grounding evals |
-| Agent branch sprawl | medium | Architect | branches live < 48h |
-| Weak observability | medium | DevOps | Langfuse + OpenTelemetry from MVP |
-| Context overload | medium | Architect/QA | context budget in every task card, yellow/red handoff summaries |
-| Premature graph/UI complexity | medium | Product/Architect | defer MVP-3 until MVP-2 exits |
-| Contract-first bottleneck | medium | Architect | keep contracts minimal and freeze in small batches |
+| Retrieval hallucination | high | Retrieval/QA | source-grounding evals and unsupported-answer boundaries |
+| Citation drift | high | Backend/QA | snippet-level citation ids and contract tests |
+| Source treated as Reality | high | Validation Agent | explicit map/territory boundary in grounded responses |
+| Premature vector database complexity | medium | Architect/Backend | local retrieval surface before production dependency |
+| Prompt-only retrieval behavior | high | Validation/QA | schemas, validators and eval fixtures enforce behavior |
+| Document privacy leakage | high | Security/Backend | local-only MVP boundary and no external ingestion by default |
+| Over-broad document scope | medium | Product/Architect | MVP-4 accepts only project-local registered documents |
+| Weak retrieval observability | medium | QA/DevOps | log query, citation ids and retrieval confidence in tests |

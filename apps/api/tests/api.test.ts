@@ -1,18 +1,27 @@
 import { describe, expect, it } from "vitest";
 import {
   appendMessage,
+  handleGroundedProjectDialoguePageRoute,
+  composeGroundedProjectResponse,
   createProject,
   createProjectSessionMessage,
   createMapDiffArtifact,
   createSession,
   getMessage,
   getProject,
+  getProjectDocument,
+  getProjectDocumentText,
   getSession,
   health,
+  listProjectDocuments,
+  searchProjectDocuments,
   materializeMapSnapshot,
+  registerProjectDocument,
+  renderGroundedProjectDialoguePage,
   validateClaimRequest
 } from "../src/index";
 import { createEmptyGraphSnapshot, projectClaimToMapNode } from "@avg/graph";
+import validResponseFixture from "../../../tests/fixtures/avg-response/valid.json";
 
 describe("api app smoke surface", () => {
   it("exposes health status", () => {
@@ -50,6 +59,169 @@ describe("api app smoke surface", () => {
     expect(record.session.projectId).toBe(record.project.id);
     expect(record.message.sessionId).toBe(record.session.id);
     expect(record.message.content).toBe("Capture the main idea.");
+  });
+
+  it("registers project-local documents through the API boundary", () => {
+    const project = createProject("Retrieval project");
+    const result = registerProjectDocument(project.id, {
+      title: "Strategy notes",
+      source_kind: "local_markdown",
+      text: "Registered document text stays local for retrieval.",
+      created_at: "2026-05-20T00:00:00.000Z",
+      metadata: {
+        origin: "manual"
+      }
+    });
+
+    expect(result.document).toEqual({
+      id: "doc_001",
+      project_id: project.id,
+      title: "Strategy notes",
+      source_kind: "local_markdown",
+      created_at: "2026-05-20T00:00:00.000Z",
+      metadata: {
+        origin: "manual"
+      }
+    });
+    expect(getProjectDocument(result.document.id)).toEqual(result.document);
+    expect(getProjectDocumentText(result.document.id)).toBe("Registered document text stays local for retrieval.");
+    expect(listProjectDocuments(project.id)).toEqual([result.document]);
+  });
+
+  it("rejects document registration for unknown projects and invalid text", () => {
+    expect(() =>
+      registerProjectDocument("project_missing", {
+        title: "Missing project source",
+        source_kind: "local_text",
+        text: "source"
+      })
+    ).toThrow("Unknown project");
+
+    const project = createProject("Invalid document project");
+    expect(() =>
+      registerProjectDocument(project.id, {
+        title: "Empty source",
+        source_kind: "local_text",
+        text: ""
+      })
+    ).toThrow("text is required");
+  });
+
+  it("searches project snippets and composes a grounded response boundary", () => {
+    const project = createProject("Grounding project");
+
+    const registered = registerProjectDocument(project.id, {
+      title: "Strategy notes",
+      source_kind: "local_markdown",
+      text: "This response keeps the distinction between map and territory clear."
+    });
+
+    const search = searchProjectDocuments(project.id, "map and territory");
+
+    expect(search.hits[0]).toMatchObject({
+      document_id: registered.document.id,
+      snippet_id: `snip_${registered.document.id}_001`,
+      citation_id: `cit_${registered.document.id}_001`,
+      confidence: "high"
+    });
+
+    const report = composeGroundedProjectResponse(project.id, {
+      response: validResponseFixture,
+      query: "map and territory",
+      limit: 3
+    });
+
+    expect(report.accepted).toBe(true);
+    expect(report.groundedResponse?.grounding.citations[0]).toMatchObject({
+      id: `cit_${registered.document.id}_001`,
+      snippet_id: `snip_${registered.document.id}_001`
+    });
+    expect(report.groundedResponse?.grounding.boundary_statement).toContain("grounded only");
+  });
+
+  it("renders a grounded project dialogue page from the API boundary", () => {
+    const project = createProject("Dialogue page project");
+
+    registerProjectDocument(project.id, {
+      title: "Dialogue notes",
+      source_kind: "local_markdown",
+      text: "The dialogue page should show grounded responses inline."
+    });
+
+    const response = {
+      id: "response_002",
+      project_id: project.id,
+      session_id: "session_002",
+      message_id: "message_002",
+      summary: "Grounded page-ready response",
+      scope: "dialogue page bridge",
+      claim_status: "boundary_statement",
+      language_mode: "operational_description",
+      validation_risk: "low",
+      risk_markers: ["retrieval_grounded"],
+      map_territory_boundary: "preserved",
+      next_action: "render the dialogue page",
+    } as const;
+
+    const page = renderGroundedProjectDialoguePage(project.id, {
+      sessionId: "session_002",
+      messages: [
+        { id: "message_001", role: "user", content: "start the page" },
+        { id: "message_002", role: "assistant", content: "grounded page bridge" },
+      ],
+      response,
+      query: "grounded page bridge"
+    });
+
+    expect(page).toContain('data-page="dialogue-flow-page"');
+    expect(page).toContain('data-panel="grounded-response-details-panel"');
+    expect(page).toContain("Grounded page-ready response");
+    expect(page).toContain("The dialogue page should show grounded responses inline.");
+  });
+
+  it("serves the grounded dialogue page route over the API boundary", () => {
+    const project = createProject("Route project");
+
+    registerProjectDocument(project.id, {
+      title: "Route notes",
+      source_kind: "local_markdown",
+      text: "The HTTP route should render the grounded page."
+    });
+
+    const response = {
+      id: "response_003",
+      project_id: project.id,
+      session_id: "session_003",
+      message_id: "message_003",
+      summary: "Route-rendered grounded response",
+      scope: "HTTP route bridge",
+      claim_status: "boundary_statement",
+      language_mode: "operational_description",
+      validation_risk: "low",
+      risk_markers: ["retrieval_grounded"],
+      map_territory_boundary: "preserved",
+      next_action: "serve the page route",
+    } as const;
+
+    const routeResponse = handleGroundedProjectDialoguePageRoute(
+      "POST",
+      `/projects/${project.id}/dialogue/page`,
+      JSON.stringify({
+        sessionId: "session_003",
+        messages: [
+          { id: "message_001", role: "user", content: "route request" },
+          { id: "message_002", role: "assistant", content: "route reply" },
+        ],
+        response,
+        query: "HTTP route bridge"
+      })
+    );
+
+    expect(routeResponse.statusCode).toBe(200);
+    expect(routeResponse.headers["content-type"]).toContain("text/html");
+    expect(routeResponse.body).toContain('data-page="dialogue-flow-page"');
+    expect(routeResponse.body).toContain("Route-rendered grounded response");
+    expect(routeResponse.body).toContain("The HTTP route should render the grounded page.");
   });
 
   it("materializes map snapshots from projections and snapshots", () => {

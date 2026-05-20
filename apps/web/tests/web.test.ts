@@ -1,18 +1,26 @@
 import { describe, expect, it } from "vitest";
 import {
+  createGroundedResponseDetailsPanel,
   createDialogueMessageSurface,
+  createDialogueMessageSurfaceFromGroundedReport,
+  createDialogueFlowPage,
   createConceptMapShell,
   createProjectSessionShell,
   createStructuredResponseDetailsPanel,
   materializeConceptMapSnapshot,
   renderConceptMapShell,
   renderDialogueMessageSurface,
+  renderDialogueMessageSurfaceFromGroundedReport,
+  renderDialogueFlowPage,
+  renderDialogueFlowPageFromGroundedReport,
   renderProjectSessionPage,
+  renderGroundedResponseDetailsPanel,
   renderStructuredResponseDetailsPanel,
   renderShellTitle,
 } from "../src/index";
 import { validateAvgResponse } from "@avg/schemas";
 import { projectClaimToMapNode } from "@avg/graph";
+import { composeGroundedResponse } from "@avg/validation";
 
 describe("web app smoke surface", () => {
   it("exposes a stable shell title", () => {
@@ -71,6 +79,49 @@ describe("web app smoke surface", () => {
     });
   });
 
+  it("creates a dialogue message surface with grounded payload", () => {
+    const response = {
+      id: "response-8",
+      project_id: "project-7",
+      session_id: "session-3",
+      message_id: "msg-3",
+      summary: "Grounded summary with snippet citations",
+      scope: "retrieval smoke path",
+      claim_status: "boundary_statement",
+      language_mode: "operational_description",
+      validation_risk: "low",
+      risk_markers: ["retrieval_grounded"],
+      map_territory_boundary: "preserved",
+      next_action: "review the cited snippets",
+    } as const;
+    const grounding = {
+      citations: [
+        {
+          id: "cit_doc_001_001",
+          document_id: "doc_001",
+          snippet_id: "snip_doc_001_001",
+          source_label: "Strategy notes",
+          quoted_text: "This response keeps the distinction between map and territory clear.",
+          relevance: "supporting",
+        },
+      ],
+      grounded_claims: ["This response keeps the distinction between map and territory clear."],
+      interpretations: ["AVG interprets the snippet as a retrieval boundary example."],
+      unsupported_claims: ["The next action remains an inference until verified."],
+      retrieval_confidence: "high",
+      boundary_statement: "This answer is grounded only in registered project document snippets.",
+    } as const;
+
+    const surface = createDialogueMessageSurface(
+      "project-7",
+      "session-3",
+      [{ id: "msg-1", role: "user", content: "raw thought" }],
+      { response, grounding },
+    );
+
+    expect(surface.groundedResponse).toEqual({ response, grounding });
+  });
+
   it("renders a deterministic dialogue message surface", () => {
     const page = renderDialogueMessageSurface("project-7", "session-3", [
       { id: "msg-1", role: "user", content: "raw thought" },
@@ -84,6 +135,152 @@ describe("web app smoke surface", () => {
     expect(page).toContain('data-message-role="assistant"');
     expect(page).toContain("structured &lt;reply&gt;");
     expect(page).toContain("Send message");
+  });
+
+  it("renders a dialogue message surface with grounded payload inline", () => {
+    const response = {
+      id: "response-8",
+      project_id: "project-7",
+      session_id: "session-3",
+      message_id: "msg-3",
+      summary: "Grounded summary with snippet citations",
+      scope: "retrieval smoke path",
+      claim_status: "boundary_statement",
+      language_mode: "operational_description",
+      validation_risk: "low",
+      risk_markers: ["retrieval_grounded"],
+      map_territory_boundary: "preserved",
+      next_action: "review the cited snippets",
+    } as const;
+    const grounding = {
+      citations: [
+        {
+          id: "cit_doc_001_001",
+          document_id: "doc_001",
+          snippet_id: "snip_doc_001_001",
+          source_label: "Strategy notes",
+          quoted_text: "This response keeps the distinction between map and territory clear.",
+          relevance: "supporting",
+        },
+      ],
+      grounded_claims: ["This response keeps the distinction between map and territory clear."],
+      interpretations: ["AVG interprets the snippet as a retrieval boundary example."],
+      unsupported_claims: ["The next action remains an inference until verified."],
+      retrieval_confidence: "high",
+      boundary_statement: "This answer is grounded only in registered project document snippets.",
+    } as const;
+
+    const page = renderDialogueMessageSurface(
+      "project-7",
+      "session-3",
+      [{ id: "msg-1", role: "user", content: "raw thought" }],
+      { response, grounding },
+    );
+
+    expect(page).toContain('data-panel="grounded-response-details-panel"');
+    expect(page).toContain('data-citation-id="cit_doc_001_001"');
+    expect(page).toContain("Grounded response");
+    expect(page).toContain("This answer is grounded only in registered project document snippets.");
+  });
+
+  it("creates and renders a dialogue surface from a grounded composition report", () => {
+    const response = {
+      id: "response-9",
+      project_id: "project-7",
+      session_id: "session-3",
+      message_id: "msg-4",
+      summary: "Grounded reply composed from retrieval hits",
+      scope: "report bridge",
+      claim_status: "boundary_statement",
+      language_mode: "operational_description",
+      validation_risk: "low",
+      risk_markers: ["retrieval_grounded"],
+      map_territory_boundary: "preserved",
+      next_action: "review the report bridge",
+    } as const;
+
+    const report = composeGroundedResponse(response, [
+      {
+        snippet_id: "snip_doc_002_001",
+        document_id: "doc_002",
+        project_id: "project-7",
+        score: 0.9,
+        confidence: "high",
+        citation_id: "cit_doc_002_001",
+        matched_text: "The retrieval report stays grounded in snippet ids.",
+        source_label: "Retrieval notes",
+      },
+    ]);
+
+    expect(report.groundedResponse?.grounding.citations[0]?.snippet_id).toBe("snip_doc_002_001");
+
+    const surface = createDialogueMessageSurfaceFromGroundedReport(
+      "project-7",
+      "session-3",
+      [{ id: "msg-1", role: "assistant", content: "report bridge" }],
+      report,
+    );
+
+    expect(surface.groundedResponse?.grounding.boundary_statement).toContain("grounded only");
+    expect(renderDialogueMessageSurfaceFromGroundedReport("project-7", "session-3", [
+      { id: "msg-1", role: "assistant", content: "report bridge" },
+    ], report)).toContain('data-panel="grounded-response-details-panel"');
+  });
+
+  it("creates and renders a dialogue flow page from a grounded report", () => {
+    const response = {
+      id: "response-10",
+      project_id: "project-7",
+      session_id: "session-3",
+      message_id: "msg-5",
+      summary: "Flow page grounded response",
+      scope: "page bridge",
+      claim_status: "boundary_statement",
+      language_mode: "operational_description",
+      validation_risk: "low",
+      risk_markers: ["retrieval_grounded"],
+      map_territory_boundary: "preserved",
+      next_action: "review the full page",
+    } as const;
+    const report = composeGroundedResponse(response, [
+      {
+        snippet_id: "snip_doc_003_001",
+        document_id: "doc_003",
+        project_id: "project-7",
+        score: 0.88,
+        confidence: "high",
+        citation_id: "cit_doc_003_001",
+        matched_text: "The page bridge keeps the dialogue flow grounded.",
+        source_label: "Page notes",
+      },
+    ]);
+
+    const page = createDialogueFlowPage(
+      "project-7",
+      "session-3",
+      [{ id: "msg-1", role: "user", content: "raw thought" }],
+      report.groundedResponse
+        ? {
+            response: report.groundedResponse.response,
+            grounding: report.groundedResponse.grounding,
+          }
+        : undefined,
+    );
+
+    expect(page.kind).toBe("dialogue-flow-page");
+    expect(page.messageSurface.groundedResponse?.grounding.citations[0]?.snippet_id).toBe("snip_doc_003_001");
+
+    const rendered = renderDialogueFlowPageFromGroundedReport(
+      "project-7",
+      "session-3",
+      [{ id: "msg-1", role: "user", content: "raw thought" }],
+      report,
+    );
+
+    expect(rendered).toContain('data-page="dialogue-flow-page"');
+    expect(rendered).toContain('data-panel="grounded-response-details-panel"');
+    expect(rendered).toContain("Project project-7");
+    expect(rendered).toContain("Session session-3");
   });
 
   it("creates a minimal structured response details panel", () => {
@@ -195,5 +392,55 @@ describe("web app smoke surface", () => {
     expect(page).toContain("operational_description");
     expect(page).toContain("Map/territory boundary");
     expect(page).toContain("session outline");
+  });
+
+  it("creates and renders a grounded response citation panel", () => {
+    const response = {
+      id: "response-8",
+      project_id: "project-7",
+      session_id: "session-3",
+      message_id: "msg-3",
+      summary: "Grounded summary with snippet citations",
+      scope: "retrieval smoke path",
+      claim_status: "boundary_statement",
+      language_mode: "operational_description",
+      validation_risk: "low",
+      risk_markers: ["retrieval_grounded"],
+      map_territory_boundary: "preserved",
+      next_action: "review the cited snippets",
+    } as const;
+    const grounding = {
+      citations: [
+        {
+          id: "cit_doc_001_001",
+          document_id: "doc_001",
+          snippet_id: "snip_doc_001_001",
+          source_label: "Strategy notes",
+          quoted_text: "This response keeps the distinction between map and territory clear.",
+          relevance: "supporting",
+        },
+      ],
+      grounded_claims: ["This response keeps the distinction between map and territory clear."],
+      interpretations: ["AVG interprets the snippet as a retrieval boundary example."],
+      unsupported_claims: ["The next action remains an inference until verified."],
+      retrieval_confidence: "high",
+      boundary_statement: "This answer is grounded only in registered project document snippets.",
+    } as const;
+
+    expect(createGroundedResponseDetailsPanel(response, grounding)).toEqual({
+      kind: "grounded-response-details-panel",
+      title: "AVG Codex Lab",
+      response,
+      grounding,
+    });
+
+    const page = renderGroundedResponseDetailsPanel(response, grounding);
+
+    expect(page).toContain('data-panel="grounded-response-details-panel"');
+    expect(page).toContain('data-citation-id="cit_doc_001_001"');
+    expect(page).toContain('data-snippet-id="snip_doc_001_001"');
+    expect(page).toContain("Grounded claims");
+    expect(page).toContain("Unsupported claims");
+    expect(page).toContain("This answer is grounded only in registered project document snippets.");
   });
 });

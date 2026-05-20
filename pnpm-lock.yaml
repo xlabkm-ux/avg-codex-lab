@@ -41,12 +41,18 @@ importers:
       '@avg/graph':
         specifier: workspace:*
         version: link:../../packages/avg-graph
+      '@avg/retrieval':
+        specifier: workspace:*
+        version: link:../../packages/avg-retrieval
       '@avg/schemas':
         specifier: workspace:*
         version: link:../../packages/avg-schemas
       '@avg/validation':
         specifier: workspace:*
         version: link:../../packages/avg-validation
+      '@avg/web':
+        specifier: workspace:*
+        version: link:../web
 
   apps/realtime-gateway: {}
 
@@ -58,6 +64,9 @@ importers:
       '@avg/schemas':
         specifier: workspace:*
         version: link:../../packages/avg-schemas
+      '@avg/validation':
+        specifier: workspace:*
+        version: link:../../packages/avg-validation
 
   apps/worker: {}
 
@@ -76,6 +85,12 @@ importers:
         version: link:../avg-schemas
 
   packages/avg-openai: {}
+
+  packages/avg-retrieval:
+    dependencies:
+      '@avg/schemas':
+        specifier: workspace:*
+        version: link:../avg-schemas
 
   packages/avg-schemas:
     dependencies:

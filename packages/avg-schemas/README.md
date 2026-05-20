@@ -17,3 +17,4 @@ See `.codex/agent-registry.md`.
 - `claim.schema.json` validates AVG claims.
 - `map-node.schema.json` and `map-edge.schema.json` validate map artifacts.
 - `avg-response.schema.json` validates the Sprint 1 structured dialogue response.
+- `document.schema.json` validates the MVP-4 local document reference.

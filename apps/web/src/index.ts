@@ -5,6 +5,10 @@ import {
   type GraphSnapshot
 } from "@avg/graph";
 import type { AvgMapEdge, AvgMapNode, AvgStructuredResponse } from "@avg/schemas";
+import type {
+  AvgGroundedResponse,
+  GroundedResponseCompositionReport,
+} from "@avg/validation";
 
 export type ProjectSessionShell = {
   kind: "project-session-shell";
@@ -26,6 +30,13 @@ export type DialogueMessage = {
   content: string;
 };
 
+export type DialogueSurfaceGrounding = {
+  response: AvgStructuredResponse;
+  grounding: AvgGroundedResponse["grounding"];
+};
+
+export type DialogueSurfaceGroundedReport = GroundedResponseCompositionReport;
+
 export type DialogueMessageSurface = {
   kind: "dialogue-message-surface";
   title: string;
@@ -36,12 +47,29 @@ export type DialogueMessageSurface = {
   emptyStateBody: string;
   composerPlaceholder: string;
   submitLabel: string;
+  groundedResponse?: DialogueSurfaceGrounding;
+};
+
+export type DialogueFlowPage = {
+  kind: "dialogue-flow-page";
+  title: string;
+  projectSession: ProjectSessionShell;
+  messageSurface: DialogueMessageSurface;
 };
 
 export type StructuredResponseDetailsPanel = {
   kind: "structured-response-details-panel";
   title: string;
   response: AvgStructuredResponse;
+};
+
+export type GroundedResponseBoundary = AvgGroundedResponse["grounding"];
+
+export type GroundedResponseDetailsPanel = {
+  kind: "grounded-response-details-panel";
+  title: string;
+  response: AvgStructuredResponse;
+  grounding: GroundedResponseBoundary;
 };
 
 export type ConceptMapSource = GraphSnapshot | ClaimProjection;
@@ -74,6 +102,10 @@ function escapeHtml(value: string): string {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#39;");
+}
+
+function indentMarkup(markup: string, indent: string): string[] {
+  return markup.split("\n").map((line) => `${indent}${line}`);
 }
 
 function isClaimProjection(value: ConceptMapSource): value is ClaimProjection {
@@ -149,6 +181,7 @@ export function createDialogueMessageSurface(
   projectId: string,
   sessionId: string,
   messages: DialogueMessage[],
+  groundedResponse?: DialogueSurfaceGrounding,
 ): DialogueMessageSurface {
   return {
     kind: "dialogue-message-surface",
@@ -160,6 +193,7 @@ export function createDialogueMessageSurface(
     emptyStateBody: "Submit a raw idea to start the conversation.",
     composerPlaceholder: "Write the next thought",
     submitLabel: "Send message",
+    ...(groundedResponse !== undefined ? { groundedResponse } : {}),
   };
 }
 
@@ -167,8 +201,29 @@ export function renderDialogueMessageSurface(
   projectId: string,
   sessionId: string,
   messages: DialogueMessage[],
+  groundedResponse?: DialogueSurfaceGrounding,
 ): string {
-  const surface = createDialogueMessageSurface(projectId, sessionId, messages);
+  const surface = createDialogueMessageSurface(
+    projectId,
+    sessionId,
+    messages,
+    groundedResponse,
+  );
+  const groundedPanel =
+    surface.groundedResponse !== undefined
+      ? [
+          `  <section aria-label="grounded-response-panel">`,
+          `    <h3>Grounded response</h3>`,
+          ...indentMarkup(
+            renderGroundedResponseDetailsPanel(
+              surface.groundedResponse.response,
+              surface.groundedResponse.grounding,
+            ),
+            "    ",
+          ),
+          `  </section>`,
+        ]
+      : [];
 
   if (surface.messages.length === 0) {
     return [
@@ -178,6 +233,7 @@ export function renderDialogueMessageSurface(
       `  <p>${escapeHtml(surface.emptyStateBody)}</p>`,
       `  <textarea placeholder="${escapeHtml(surface.composerPlaceholder)}"></textarea>`,
       `  <button type="button">${escapeHtml(surface.submitLabel)}</button>`,
+      ...groundedPanel,
       `</section>`,
     ].join("\n");
   }
@@ -191,10 +247,126 @@ export function renderDialogueMessageSurface(
         `    <li data-message-id="${escapeHtml(message.id)}" data-message-role="${escapeHtml(message.role)}"><strong>${escapeHtml(message.role)}</strong><p>${escapeHtml(message.content)}</p></li>`,
     ),
     `  </ol>`,
+    ...groundedPanel,
     `  <textarea placeholder="${escapeHtml(surface.composerPlaceholder)}"></textarea>`,
     `  <button type="button">${escapeHtml(surface.submitLabel)}</button>`,
     `</section>`,
   ].join("\n");
+}
+
+export function createDialogueMessageSurfaceFromGroundedReport(
+  projectId: string,
+  sessionId: string,
+  messages: DialogueMessage[],
+  report: GroundedResponseCompositionReport,
+): DialogueMessageSurface {
+  return createDialogueMessageSurface(
+    projectId,
+    sessionId,
+    messages,
+    report.groundedResponse === undefined
+      ? undefined
+      : {
+          response: report.groundedResponse.response,
+          grounding: report.groundedResponse.grounding,
+        },
+  );
+}
+
+export function renderDialogueMessageSurfaceFromGroundedReport(
+  projectId: string,
+  sessionId: string,
+  messages: DialogueMessage[],
+  report: GroundedResponseCompositionReport,
+): string {
+  return renderDialogueMessageSurface(
+    projectId,
+    sessionId,
+    messages,
+    report.groundedResponse === undefined
+        ? undefined
+        : {
+          response: report.groundedResponse.response,
+          grounding: report.groundedResponse.grounding,
+        },
+  );
+}
+
+export function createDialogueFlowPage(
+  projectId: string,
+  sessionId: string,
+  messages: DialogueMessage[],
+  groundedResponse?: DialogueSurfaceGrounding,
+): DialogueFlowPage {
+  return {
+    kind: "dialogue-flow-page",
+    title: renderShellTitle(),
+    projectSession: createProjectSessionShell(projectId, sessionId),
+    messageSurface: createDialogueMessageSurface(
+      projectId,
+      sessionId,
+      messages,
+      groundedResponse,
+    ),
+  };
+}
+
+export function renderDialogueFlowPage(
+  projectId: string,
+  sessionId: string,
+  messages: DialogueMessage[],
+  groundedResponse?: DialogueSurfaceGrounding,
+): string {
+  const page = createDialogueFlowPage(
+    projectId,
+    sessionId,
+    messages,
+    groundedResponse,
+  );
+
+  return [
+    `<main data-page="${page.kind}" data-project-id="${escapeHtml(page.projectSession.projectId)}" data-session-id="${escapeHtml(page.projectSession.sessionId)}">`,
+    `  <header>`,
+    `    <p>${escapeHtml(page.title)}</p>`,
+    `    <h1>${escapeHtml(page.projectSession.projectLabel)}</h1>`,
+    `    <h2>${escapeHtml(page.projectSession.sessionLabel)}</h2>`,
+    `  </header>`,
+    `  <section aria-labelledby="avg-raw-idea">`,
+    `    <h3 id="avg-raw-idea">${escapeHtml(page.projectSession.promptLabel)}</h3>`,
+    `    <p>${escapeHtml(page.projectSession.emptyStateBody)}</p>`,
+    `  </section>`,
+    `  <section aria-label="dialogue-thread">`,
+    ...indentMarkup(
+      renderDialogueMessageSurface(
+        projectId,
+        sessionId,
+        messages,
+        groundedResponse,
+      ),
+      "    ",
+    ),
+    `  </section>`,
+    `</main>`,
+  ].join("\n");
+}
+
+export function renderDialogueFlowPageFromGroundedReport(
+  projectId: string,
+  sessionId: string,
+  messages: DialogueMessage[],
+  report: GroundedResponseCompositionReport,
+): string {
+  return renderDialogueFlowPage(
+    projectId,
+    sessionId,
+    messages,
+    report.groundedResponse === undefined
+      ? undefined
+      : {
+          response: report.groundedResponse.response,
+          grounding: report.groundedResponse.grounding,
+        },
+  );
 }
 
 export function createStructuredResponseDetailsPanel(
@@ -241,6 +413,79 @@ export function renderStructuredResponseDetailsPanel(
     `    <h4>Artifacts</h4>`,
     `    <ul>`,
     ...(artifactItems.length > 0 ? artifactItems : ["    <li>None</li>"]),
+    `    </ul>`,
+    `  </section>`,
+    `</section>`,
+  ].join("\n");
+}
+
+export function createGroundedResponseDetailsPanel(
+  response: AvgStructuredResponse,
+  grounding: GroundedResponseBoundary,
+): GroundedResponseDetailsPanel {
+  return {
+    kind: "grounded-response-details-panel",
+    title: renderShellTitle(),
+    response,
+    grounding,
+  };
+}
+
+export function renderGroundedResponseDetailsPanel(
+  response: AvgStructuredResponse,
+  grounding: GroundedResponseBoundary,
+): string {
+  const panel = createGroundedResponseDetailsPanel(response, grounding);
+  const citationItems = panel.grounding.citations.map(
+    (citation) => [
+      `    <li data-citation-id="${escapeHtml(citation.id)}" data-snippet-id="${escapeHtml(citation.snippet_id)}" data-document-id="${escapeHtml(citation.document_id)}" data-relevance="${escapeHtml(citation.relevance)}">`,
+      `      <strong>${escapeHtml(citation.source_label)}</strong>`,
+      `      <code>${escapeHtml(citation.snippet_id)}</code>`,
+      `      <p>${escapeHtml(citation.quoted_text)}</p>`,
+      `    </li>`,
+    ].join("\n"),
+  );
+
+  const groundedClaimItems = panel.grounding.grounded_claims.map(
+    (claim) => `    <li>${escapeHtml(claim)}</li>`,
+  );
+  const interpretationItems = panel.grounding.interpretations.map(
+    (interpretation) => `    <li>${escapeHtml(interpretation)}</li>`,
+  );
+  const unsupportedClaimItems = panel.grounding.unsupported_claims.map(
+    (claim) => `    <li>${escapeHtml(claim)}</li>`,
+  );
+
+  return [
+    `<section data-panel="${panel.kind}" data-response-id="${escapeHtml(panel.response.id)}" data-project-id="${escapeHtml(panel.response.project_id)}" data-session-id="${escapeHtml(panel.response.session_id)}" data-message-id="${escapeHtml(panel.response.message_id)}">`,
+    `  <p>${escapeHtml(panel.title)}</p>`,
+    `  <h3>${escapeHtml(panel.response.summary)}</h3>`,
+    `  <dl>`,
+    `    <div><dt>Retrieval confidence</dt><dd>${escapeHtml(panel.grounding.retrieval_confidence)}</dd></div>`,
+    `    <div><dt>Boundary statement</dt><dd>${escapeHtml(panel.grounding.boundary_statement)}</dd></div>`,
+    `  </dl>`,
+    `  <section aria-label="citation-list">`,
+    `    <h4>Citations</h4>`,
+    `    <ul>`,
+    ...(citationItems.length > 0 ? citationItems : ["    <li>No citations</li>"]),
+    `    </ul>`,
+    `  </section>`,
+    `  <section aria-label="grounded-claims">`,
+    `    <h4>Grounded claims</h4>`,
+    `    <ul>`,
+    ...(groundedClaimItems.length > 0 ? groundedClaimItems : ["    <li>None</li>"]),
+    `    </ul>`,
+    `  </section>`,
+    `  <section aria-label="interpretations">`,
+    `    <h4>Interpretations</h4>`,
+    `    <ul>`,
+    ...(interpretationItems.length > 0 ? interpretationItems : ["    <li>None</li>"]),
+    `    </ul>`,
+    `  </section>`,
+    `  <section aria-label="unsupported-claims">`,
+    `    <h4>Unsupported claims</h4>`,
+    `    <ul>`,
+    ...(unsupportedClaimItems.length > 0 ? unsupportedClaimItems : ["    <li>None</li>"]),
     `    </ul>`,
     `  </section>`,
     `</section>`,

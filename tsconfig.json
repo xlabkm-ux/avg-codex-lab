@@ -8,6 +8,7 @@
     { "path": "./apps/worker" },
     { "path": "./packages/avg-evals" },
     { "path": "./packages/avg-graph" },
+    { "path": "./packages/avg-retrieval" },
     { "path": "./packages/avg-schemas" },
     { "path": "./packages/avg-validation" }
   ]

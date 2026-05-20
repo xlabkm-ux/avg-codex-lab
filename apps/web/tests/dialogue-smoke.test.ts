@@ -3,17 +3,16 @@ import { validateAvgResponse } from "@avg/schemas";
 import {
   renderConceptMapShell,
   renderDialogueMessageSurface,
+  renderDialogueFlowPageFromGroundedReport,
+  renderDialogueMessageSurfaceFromGroundedReport,
   renderProjectSessionPage,
   renderStructuredResponseDetailsPanel,
 } from "../src/index";
+import { composeGroundedResponse } from "@avg/validation";
 
 describe("first dialogue smoke path", () => {
   it("renders the minimal web dialogue flow end to end", () => {
     const shell = renderProjectSessionPage("project-7", "session-3");
-    const messageSurface = renderDialogueMessageSurface("project-7", "session-3", [
-      { id: "msg-1", role: "user", content: "raw thought" },
-      { id: "msg-2", role: "assistant", content: "structured reply" },
-    ]);
     const response = {
       id: "response-7",
       project_id: "project-7",
@@ -29,6 +28,27 @@ describe("first dialogue smoke path", () => {
       next_action: "continue with the next message",
       artifacts: ["session outline"],
     } as const;
+    const report = composeGroundedResponse(response, [
+      {
+        snippet_id: "snip_doc_001_001",
+        document_id: "doc_001",
+        project_id: "project-7",
+        score: 0.92,
+        confidence: "high",
+        citation_id: "cit_doc_001_001",
+        matched_text: "This response keeps the distinction between map and territory clear.",
+        source_label: "Strategy notes",
+      },
+    ]);
+    const messageSurface = renderDialogueMessageSurfaceFromGroundedReport(
+      "project-7",
+      "session-3",
+      [
+        { id: "msg-1", role: "user", content: "raw thought" },
+        { id: "msg-2", role: "assistant", content: "structured reply" },
+      ],
+      report,
+    );
     const details = renderStructuredResponseDetailsPanel(response);
     const conceptMap = renderConceptMapShell();
 
@@ -36,9 +56,26 @@ describe("first dialogue smoke path", () => {
     expect(shell).toContain('data-shell="project-session-shell"');
     expect(messageSurface).toContain('data-surface="dialogue-message-surface"');
     expect(details).toContain('data-panel="structured-response-details-panel"');
+    expect(messageSurface).toContain('data-panel="grounded-response-details-panel"');
+    expect(messageSurface).toContain('data-citation-id="cit_doc_001_001"');
     expect(conceptMap).toContain('data-shell="concept-map-shell"');
     expect(shell).toContain("Project project-7");
     expect(messageSurface).toContain("raw thought");
+    expect(messageSurface).toContain("structured reply");
     expect(details).toContain("A structured reply with explicit boundaries");
+    expect(messageSurface).toContain("This answer is grounded only in registered project document snippets.");
+
+    const flowPage = renderDialogueFlowPageFromGroundedReport(
+      "project-7",
+      "session-3",
+      [
+        { id: "msg-1", role: "user", content: "raw thought" },
+        { id: "msg-2", role: "assistant", content: "structured reply" },
+      ],
+      report,
+    );
+
+    expect(flowPage).toContain('data-page="dialogue-flow-page"');
+    expect(flowPage).toContain('data-panel="grounded-response-details-panel"');
   });
 });

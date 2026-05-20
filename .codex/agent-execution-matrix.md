@@ -1,6 +1,6 @@
 # Agent Execution Matrix
 
-This matrix defines how agents execute the MVP-0 to MVP-2 plan.
+This matrix defines how agents execute the active AVG sprint plan.
 
 Sprint order, active sprint selection and task sequencing are defined in `.codex/sprint-execution-protocol.md`.
 
@@ -96,13 +96,16 @@ Before another agent continues a task, the current agent must provide:
 | yellow | broad context or multiple contracts | write handoff summary before edits continue |
 | red | context overloaded or task too broad | stop and split task |
 
-## MVP-0 to MVP-2 Agent Allocation
+## Phase 4 Agent Allocation
 
 | Milestone | Primary Agents | Review Agents |
 |---|---|---|
-| MVP-0 | Architect, DevOps, QA | Backend, Docs |
-| MVP-1 | Backend, Frontend, QA | Architect, Validation |
-| MVP-2 | Validation, QA, Backend | Architect, Frontend, Security |
+| MVP-4 Retrieval and Documents | Architect, Backend, Retrieval, QA | Validation, Frontend, Security |
+| AVG-601 Retrieval contract | Architect | Backend, Validation, QA |
+| AVG-602 Document registration | Backend | Architect, QA |
+| AVG-603 Chunking and search | Retrieval | Backend, QA |
+| AVG-604 Grounded response composer | Backend, Validation | Architect, QA, Security |
+| AVG-605 Citation panel and evals | Frontend, QA | Validation, Backend |
 
 ## Practical Resource Rule
 
@@ -110,10 +113,11 @@ If only one active human/Codex lane is available, run tasks in this order:
 
 1. Architect contract task.
 2. QA guardrail task.
-3. Backend implementation.
-4. Frontend implementation.
+3. Backend document boundary.
+4. Retrieval implementation.
 5. Validation behavior.
-6. Documentation update.
+6. Frontend citation surface.
+7. Documentation update.
 
 This keeps the project moving without creating parallel conflict debt.
 

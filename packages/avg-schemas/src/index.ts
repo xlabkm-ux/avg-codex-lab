@@ -79,6 +79,19 @@ export const mapTerritoryBoundaryStates = ["preserved", "unclear", "violated"] a
 
 export type MapTerritoryBoundaryState = (typeof mapTerritoryBoundaryStates)[number];
 
+export const documentSourceKinds = ["local_text", "local_markdown", "local_document"] as const;
+
+export type DocumentSourceKind = (typeof documentSourceKinds)[number];
+
+export interface AvgDocumentRef {
+  id: string;
+  project_id: string;
+  title: string;
+  source_kind: DocumentSourceKind;
+  created_at: string;
+  metadata?: Record<string, string>;
+}
+
 export interface AvgStructuredResponse {
   id: string;
   project_id: string;
@@ -111,11 +124,13 @@ export const claimSchema = loadSchema("schemas/json-schema/claim.schema.json");
 export const mapNodeSchema = loadSchema("schemas/json-schema/map-node.schema.json");
 export const mapEdgeSchema = loadSchema("schemas/json-schema/map-edge.schema.json");
 export const avgResponseSchema = loadSchema("schemas/json-schema/avg-response.schema.json");
+export const documentSchema = loadSchema("schemas/json-schema/document.schema.json");
 
 const claimValidator = ajv.compile<AvgClaim>(claimSchema);
 const mapNodeValidator = ajv.compile<AvgMapNode>(mapNodeSchema);
 const mapEdgeValidator = ajv.compile<AvgMapEdge>(mapEdgeSchema);
 const avgResponseValidator = ajv.compile<AvgStructuredResponse>(avgResponseSchema);
+const documentValidator = ajv.compile<AvgDocumentRef>(documentSchema);
 
 function runValidator<T>(validator: ValidateFunction<T>, value: unknown): ValidationResult {
   const valid = validator(value);
@@ -141,10 +156,18 @@ export function validateAvgResponse(value: unknown): ValidationResult {
   return runValidator(avgResponseValidator, value);
 }
 
+export function validateDocumentRef(value: unknown): ValidationResult {
+  return runValidator(documentValidator, value);
+}
+
 export function isAvgClaim(value: unknown): value is AvgClaim {
   return validateClaim(value).valid;
 }
 
 export function isAvgStructuredResponse(value: unknown): value is AvgStructuredResponse {
   return validateAvgResponse(value).valid;
+}
+
+export function isAvgDocumentRef(value: unknown): value is AvgDocumentRef {
+  return validateDocumentRef(value).valid;
 }

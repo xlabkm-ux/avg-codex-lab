@@ -3,7 +3,7 @@ import validClaimFixture from "../../../tests/fixtures/claims/valid.json";
 import invalidClaimFixture from "../../../tests/fixtures/claims/invalid-missing-status.json";
 import validResponseFixture from "../../../tests/fixtures/avg-response/valid.json";
 import invalidResponseFixture from "../../../tests/fixtures/avg-response/invalid-missing-boundary.json";
-import { validateAvgResponse, validateClaim, validateMapEdge, validateMapNode } from "../src/index";
+import { validateAvgResponse, validateClaim, validateDocumentRef, validateMapEdge, validateMapNode } from "../src/index";
 
 describe("AVG JSON Schema contracts", () => {
   it("accepts the valid claim fixture", () => {
@@ -50,6 +50,34 @@ describe("AVG JSON Schema contracts", () => {
 
   it("accepts a structured AVG response fixture", () => {
     expect(validateAvgResponse(validResponseFixture)).toMatchObject({ valid: true, errors: [] });
+  });
+
+  it("accepts a local document reference", () => {
+    expect(
+      validateDocumentRef({
+        id: "doc_001",
+        project_id: "project_001",
+        title: "Strategy notes",
+        source_kind: "local_markdown",
+        created_at: "2026-05-20T00:00:00.000Z",
+        metadata: {
+          origin: "manual"
+        }
+      })
+    ).toMatchObject({ valid: true, errors: [] });
+  });
+
+  it("rejects a document reference with unsupported source kind", () => {
+    const result = validateDocumentRef({
+      id: "doc_001",
+      project_id: "project_001",
+      title: "Strategy notes",
+      source_kind: "remote_url",
+      created_at: "2026-05-20T00:00:00.000Z"
+    });
+
+    expect(result.valid).toBe(false);
+    expect(result.errors.some((error) => error.keyword === "enum")).toBe(true);
   });
 
   it("rejects a structured response without a map-territory boundary marker", () => {

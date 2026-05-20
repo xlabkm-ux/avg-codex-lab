@@ -2,97 +2,77 @@
 
 ## Current Mission
 
-Build AVG MVP-0 to MVP-3: repository operating system, structured dialogue, claim validation and concept map.
+Build AVG Phase 4: Retrieval and Documents.
 
 Approved plan:
 
-- `docs/00-product/mvp-0-2-development-plan.md`
+- `docs/00-product/mvp-4-retrieval-and-documents-plan.md`
 - `.codex/war-room/sprint-backlog.md`
 - `.codex/war-room/project-backlog-progress.md`
-- `.codex/agent-execution-matrix.md`
 - `.codex/model-policy.md`
+
+Completed prior work is archived at:
+
+- `.codex/war-room/archive/mvp-0-to-mvp-3-2026-05-20/`
 
 ## Current Sprint
 
-Active sprint: `none`
+Active sprint: `Sprint 6`.
 
 Current gate:
 
-- Sprint 5 complete
-
-Approved gate:
-
-- `AVG-505` - graph, API and UI smoke coverage
+- `AVG-601` contract freeze is complete.
+- `AVG-602` document registration and local store boundary is complete.
+- Start `AVG-603` deterministic chunking and search surface next.
 
 Execution rule:
 
-- keep completed Sprint 5 work documented and avoid reopening MVP-3 unless a new task is approved.
+- Retrieval must be contract-first.
+- Do not add prompt behavior for source-grounded answers without eval fixtures.
+- Do not add production retrieval dependencies before the local contract is proven.
 
 ## Active Branches
 
 | Agent | Branch | Task | Approved Model | Risk | Status |
 |---|---|---|---|---|---|
-| Architect | agent/architect/AVG-001-contracts | package contracts | gpt-5.5 | red | done |
-| Architect | agent/architect/AVG-101-structured-response-contract | structured response contract | gpt-5.5 | red | done |
-| Backend | agent/backend/AVG-102-project-session-message-api | project/session/message API | gpt-5.4 | yellow | done |
-| Backend | agent/backend/AVG-103-openai-adapter-boundary | OpenAI adapter boundary | gpt-5.4 | yellow | done |
-| Backend | agent/backend/AVG-104-mode-router-response-composer | mode router and response composer | gpt-5.4 | yellow | done |
-| QA | agent/qa/AVG-105-api-contract-smoke-tests | API contract and smoke tests | gpt-5.4 | yellow | done |
-| Frontend | agent/frontend/AVG-201-minimal-project-session-ui | minimal project/session UI | gpt-5.4 | yellow | done |
-| Frontend | agent/frontend/AVG-202-dialogue-message-surface | dialogue message surface | gpt-5.4 | yellow | done |
-| Frontend | agent/frontend/AVG-203-structured-response-details-panel | structured response details panel | gpt-5.4 | yellow | done |
-| QA | agent/qa/AVG-204-first-dialogue-smoke-test | first dialogue smoke test | gpt-5.4 | yellow | done |
-| Docs | agent/docs/AVG-205-mvp1-usage-notes | MVP-1 usage notes | gpt-5.4-mini | green | done |
-| Backend | agent/backend/AVG-003-package-configs | TypeScript package configs and build scripts | gpt-5.4 | yellow | done |
-| DevOps | agent/devops/AVG-002-ci-baseline | CI baseline | gpt-5.4-mini | yellow | done |
-| Docs | agent/docs/AVG-005-backlog-progress | project backlog progress view | gpt-5.4-mini | green | done |
-| QA | agent/qa/AVG-004-schema-validation | testkit/schema validation | gpt-5.4 | yellow | done |
+| Architect | agent/architect/AVG-601-retrieval-grounding-contract | retrieval and grounding contract | gpt-5.5 | red | done |
+| Backend | agent/backend/AVG-602-document-registration | document registration and local store boundary | gpt-5.4 | yellow | done |
+| Retrieval | agent/retrieval/AVG-603-chunking-search-surface | chunking and search surface | gpt-5.4 | yellow | ready |
 
 ## Shared Contracts Under Freeze
 
-- ClaimStatus enum.
-- ConceptMapNode schema.
-- ToolCallResult schema.
-- Structured AVG response schema until AVG-101 is approved.
+- Structured AVG response schema.
+- Claim validation schema.
+- Concept map schema.
 
 ## Red Zones
 
 Do not edit without owner:
 
-- `packages/avg-validation/src/schemas`;
 - `schemas/json-schema/claim.schema.json`;
 - `schemas/openapi/openapi.yaml`;
-- `database migrations`;
-- `prompts/system/base.md`.
+- `prompts/system/base.md`;
+- production database or vector index configuration.
 
 ## Open Decisions
 
-- Should metaphor detection be rule-first, model-first, or hybrid?
-- What minimal persistence should MVP-1 use: in-memory, file-backed or local Postgres?
-- Which model routing policy should MVP-1 use for local development?
+- Should Sprint 6 use file-backed JSON, in-memory storage or an existing local package boundary?
+- What chunk size and ranking baseline should AVG-603 use for deterministic local retrieval?
 
 ## Context Watch
 
 | Task | Agent | Context | Risk | Action |
 |---|---|---|---|---|
-| AVG-001 | Architect | green | contract spread | done |
-| AVG-002 | DevOps | green | CI churn | done |
-| AVG-004 | QA | green | fixtures may become shared contract | done |
+| AVG-601 | Architect | green | shared contract design | done |
+| AVG-602 | Backend | green | local store boundary | done |
+| AVG-603 | Retrieval | green | deterministic retrieval surface | use local document store |
 
 ## Model Watch
 
 | Task | Agent | Approved Model | Escalation |
 |---|---|---|---|
-| AVG-001 | Architect | `gpt-5.5` | done |
-| AVG-101 | Architect | `gpt-5.5` | done |
-| AVG-102 | Backend | `gpt-5.4` | done |
-| AVG-103 | Backend | `gpt-5.4` | done |
-| AVG-104 | Backend | `gpt-5.4` | done |
-| AVG-105 | QA | `gpt-5.4` | done |
-| AVG-201 | Frontend | `gpt-5.4` | done |
-| AVG-202 | Frontend | `gpt-5.4` | done |
-| AVG-203 | Frontend | `gpt-5.4` | done |
-| AVG-204 | QA | `gpt-5.4` | done |
-| AVG-205 | Docs | `gpt-5.4-mini` | done |
-| AVG-002 | DevOps | `gpt-5.4-mini` | done |
-| AVG-004 | QA | `gpt-5.4` | done |
+| AVG-601 | Architect | `gpt-5.5` | done |
+| AVG-602 | Backend | `gpt-5.4` | done |
+| AVG-603 | Retrieval | `gpt-5.4` | ready |
+| AVG-604 | Backend/Validation | `gpt-5.5` | sprint approval required |
+| AVG-605 | Frontend/QA | `gpt-5.4` | after response shape |

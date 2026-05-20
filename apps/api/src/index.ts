@@ -1,3 +1,5 @@
+import { createServer, type IncomingMessage, type Server } from "node:http";
+import { URL } from "node:url";
 import {
   cloneGraphSnapshot,
   createEmptyGraphSnapshot,
@@ -6,7 +8,17 @@ import {
   type GraphDiff,
   type GraphSnapshot
 } from "@avg/graph";
+import {
+  createDocumentRepository,
+  type AvgRetrievalHit,
+  type RegisterDocumentInput,
+  type SearchDocumentsOptions,
+  type RegisterDocumentResult
+} from "@avg/retrieval";
+import { type AvgStructuredResponse } from "@avg/schemas";
+import { composeGroundedResponse, type GroundedResponseCompositionReport } from "@avg/validation";
 import { validateClaimContract } from "@avg/validation";
+import { renderDialogueFlowPageFromGroundedReport, type DialogueMessage } from "@avg/web";
 
 export interface HealthResponse {
   status: "ok";
@@ -57,6 +69,32 @@ const counters: Record<IdPrefix, number> = {
 const projects = new Map<string, ProjectRecord>();
 const sessions = new Map<string, SessionRecord>();
 const messages = new Map<string, MessageRecord>();
+const documentRepository = createDocumentRepository();
+
+export type RegisterProjectDocumentBody = Omit<RegisterDocumentInput, "project_id">;
+export type SearchProjectDocumentsOptions = SearchDocumentsOptions;
+
+export interface ComposeGroundedProjectResponseInput {
+  response: AvgStructuredResponse;
+  query: string;
+  limit?: number;
+}
+
+export interface RenderGroundedProjectDialoguePageInput extends ComposeGroundedProjectResponseInput {
+  sessionId: string;
+  messages: DialogueMessage[];
+}
+
+export interface ApiRouteResponse {
+  statusCode: number;
+  headers: Record<string, string>;
+  body: string;
+}
+
+export interface RenderGroundedProjectDialoguePageRequest extends RenderGroundedProjectDialoguePageInput {
+  query: string;
+  limit?: number;
+}
 
 function isClaimProjection(value: MapSnapshotLike): value is ClaimProjection {
   return "node" in value && !("nodes" in value);
@@ -140,6 +178,203 @@ export function getSession(sessionId: string): SessionRecord | undefined {
 
 export function getMessage(messageId: string): MessageRecord | undefined {
   return messages.get(messageId);
+}
+
+export function registerProjectDocument(
+  projectId: string,
+  body: RegisterProjectDocumentBody
+): RegisterDocumentResult {
+  if (!projects.has(projectId)) {
+    throw new Error(`Unknown project: ${projectId}`);
+  }
+
+  return documentRepository.registerDocument({
+    ...body,
+    project_id: projectId
+  });
+}
+
+export function getProjectDocument(documentId: string) {
+  return documentRepository.getDocument(documentId);
+}
+
+export function getProjectDocumentText(documentId: string) {
+  return documentRepository.getDocumentText(documentId);
+}
+
+export function listProjectDocuments(projectId: string) {
+  if (!projects.has(projectId)) {
+    throw new Error(`Unknown project: ${projectId}`);
+  }
+
+  return documentRepository.listDocuments(projectId);
+}
+
+export function searchProjectDocuments(projectId: string, query: string, options: SearchProjectDocumentsOptions = {}) {
+  if (!projects.has(projectId)) {
+    throw new Error(`Unknown project: ${projectId}`);
+  }
+
+  return documentRepository.searchDocuments(projectId, query, options);
+}
+
+export function composeGroundedProjectResponse(
+  projectId: string,
+  input: ComposeGroundedProjectResponseInput
+): GroundedResponseCompositionReport {
+  if (!projects.has(projectId)) {
+    throw new Error(`Unknown project: ${projectId}`);
+  }
+
+  const retrieval = documentRepository.searchDocuments(projectId, input.query, {
+    ...(input.limit !== undefined ? { limit: input.limit } : {})
+  });
+
+  return composeGroundedResponse(input.response, retrieval.hits as AvgRetrievalHit[]);
+}
+
+export function renderGroundedProjectDialoguePage(
+  projectId: string,
+  input: RenderGroundedProjectDialoguePageInput
+): string {
+  const report = composeGroundedProjectResponse(projectId, input);
+
+  return renderDialogueFlowPageFromGroundedReport(
+    projectId,
+    input.sessionId,
+    input.messages,
+    report
+  );
+}
+
+function jsonResponse(statusCode: number, body: unknown): ApiRouteResponse {
+  return {
+    statusCode,
+    headers: {
+      "content-type": "application/json; charset=utf-8"
+    },
+    body: JSON.stringify(body)
+  };
+}
+
+function htmlResponse(body: string): ApiRouteResponse {
+  return {
+    statusCode: 200,
+    headers: {
+      "content-type": "text/html; charset=utf-8"
+    },
+    body
+  };
+}
+
+async function readRequestBody(request: IncomingMessage): Promise<string> {
+  const chunks: Buffer[] = [];
+
+  for await (const chunk of request) {
+    chunks.push(typeof chunk === "string" ? Buffer.from(chunk) : chunk);
+  }
+
+  return Buffer.concat(chunks).toString("utf8");
+}
+
+function isRenderGroundedProjectDialoguePageRequest(
+  value: unknown
+): value is RenderGroundedProjectDialoguePageRequest {
+  if (typeof value !== "object" || value === null) {
+    return false;
+  }
+
+  const record = value as Record<string, unknown>;
+  return (
+    typeof record.query === "string" &&
+    typeof record.sessionId === "string" &&
+    Array.isArray(record.messages) &&
+    "response" in record &&
+    (typeof record.limit === "number" || record.limit === undefined)
+  );
+}
+
+export function handleGroundedProjectDialoguePageRoute(
+  method: string,
+  pathname: string,
+  bodyText: string,
+): ApiRouteResponse {
+  if (method === "GET" && pathname === "/health") {
+    return jsonResponse(200, health());
+  }
+
+  const pageRouteMatch = /^\/projects\/([^/]+)\/dialogue\/page$/.exec(pathname);
+  if (method === "POST" && pageRouteMatch !== null) {
+    const projectId = pageRouteMatch[1]!;
+
+    try {
+      const parsedBody = JSON.parse(bodyText) as unknown;
+      if (!isRenderGroundedProjectDialoguePageRequest(parsedBody)) {
+        return jsonResponse(400, {
+          code: "INVALID_REQUEST",
+          message: "The grounded dialogue page request is missing required fields.",
+          details: {}
+        });
+      }
+
+      if (parsedBody.response.project_id !== projectId) {
+        return jsonResponse(400, {
+          code: "PROJECT_ID_MISMATCH",
+          message: "The grounded dialogue page response must match the route project id.",
+          details: {
+            projectId,
+            responseProjectId: parsedBody.response.project_id
+          }
+        });
+      }
+
+      const body = renderGroundedProjectDialoguePage(projectId, {
+        sessionId: parsedBody.sessionId,
+        messages: parsedBody.messages,
+        response: parsedBody.response,
+        query: parsedBody.query,
+        ...(parsedBody.limit !== undefined ? { limit: parsedBody.limit } : {})
+      });
+
+      return htmlResponse(body);
+    } catch {
+      return jsonResponse(400, {
+        code: "INVALID_JSON",
+        message: "The grounded dialogue page request body must be valid JSON.",
+        details: {}
+      });
+    }
+  }
+
+  return jsonResponse(404, {
+    code: "NOT_FOUND",
+    message: "The requested route is not available.",
+    details: {
+      method,
+      pathname
+    }
+  });
+}
+
+export function createApiServer(): Server {
+  return createServer(async (request, response) => {
+    const requestUrl = new URL(request.url ?? "/", "http://localhost");
+    const bodyText = request.method === "GET" || request.method === "HEAD" ? "" : await readRequestBody(request);
+    const routeResponse = handleGroundedProjectDialoguePageRoute(
+      request.method ?? "GET",
+      requestUrl.pathname,
+      bodyText
+    );
+
+    response.writeHead(routeResponse.statusCode, routeResponse.headers);
+
+    if (request.method === "HEAD") {
+      response.end();
+      return;
+    }
+
+    response.end(routeResponse.body);
+  });
 }
 
 export function createProjectSessionMessage(

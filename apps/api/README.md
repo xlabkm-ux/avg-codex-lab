@@ -9,6 +9,12 @@ Fastify API: sessions, projects, messages, tools, OpenAI orchestration.
 - `materializeMapSnapshot()` normalizes a graph projection or snapshot into a defensive snapshot copy.
 - `createMapDiffArtifact()` emits a deterministic `map_diff` artifact using `@avg/graph`'s `diffGraphSnapshots()`.
 - `validateClaimRequest()` forwards claim bodies into the contract validator.
+- `registerProjectDocument()` registers local project documents through `@avg/retrieval`.
+- `getProjectDocument()`, `getProjectDocumentText()` and `listProjectDocuments()` expose the MVP-4 local document boundary.
+- `searchProjectDocuments()` and `composeGroundedProjectResponse()` expose the grounded retrieval boundary.
+- `renderGroundedProjectDialoguePage()` composes grounded retrieval and renders the full dialogue page through `@avg/web`.
+- `handleGroundedProjectDialoguePageRoute()` serves the grounded dialogue page over `POST /projects/{projectId}/dialogue/page`.
+- `createApiServer()` exposes a minimal Node HTTP server that uses the same route handler.
 
 ## First Implementation Tasks
 
@@ -19,13 +25,31 @@ Fastify API: sessions, projects, messages, tools, OpenAI orchestration.
 
 ## Usage Notes
 
-The current API surface is intentionally in-memory and deterministic. It is a contract slice for Sprint 1, not a production persistence layer.
+The current API surface is intentionally in-memory and deterministic. It is a contract slice, not a production persistence layer.
+
+### Document Registration
+
+```ts
+import { createProject, registerProjectDocument } from "@avg/api";
+
+const project = createProject("Retrieval project");
+const result = registerProjectDocument(project.id, {
+  title: "Strategy notes",
+  source_kind: "local_markdown",
+  text: "Document text for local MVP retrieval.",
+  metadata: {
+    origin: "manual"
+  }
+});
+```
+
+The API returns a stable document reference. Source text remains inside the local retrieval repository where it can be chunked and searched deterministically.
 
 ### Map Diff Artifact
 
 ```ts
 import { createEmptyGraphSnapshot, projectClaimToMapNode } from "@avg/graph";
-import { createMapDiffArtifact } from "@avg/api";
+import { createMapDiffArtifact, renderGroundedProjectDialoguePage } from "@avg/api";
 
 const before = createEmptyGraphSnapshot();
 const after = projectClaimToMapNode({
@@ -41,3 +65,47 @@ const artifact = createMapDiffArtifact(before, after);
 ```
 
 The artifact keeps the `from` and `to` snapshots intact and computes the diff through `diffGraphSnapshots()`.
+
+### Grounded Dialogue Page
+
+```ts
+import { createProject, registerProjectDocument, renderGroundedProjectDialoguePage } from "@avg/api";
+
+const project = createProject("Dialogue project");
+registerProjectDocument(project.id, {
+  title: "Strategy notes",
+  source_kind: "local_markdown",
+  text: "The grounded response should stay visible in the dialogue flow."
+});
+
+const page = renderGroundedProjectDialoguePage(project.id, {
+  sessionId: "session_001",
+  messages: [
+    { id: "message_001", role: "user", content: "raw thought" },
+    { id: "message_002", role: "assistant", content: "grounded response" }
+  ],
+  response: {
+    id: "response_001",
+    project_id: project.id,
+    session_id: "session_001",
+    message_id: "message_002",
+    summary: "Grounded response",
+    scope: "dialogue page",
+    claim_status: "boundary_statement",
+    language_mode: "operational_description",
+    validation_risk: "low",
+    risk_markers: ["retrieval_grounded"],
+    map_territory_boundary: "preserved",
+    next_action: "continue the dialogue",
+  },
+  query: "grounded response"
+});
+```
+
+This helper bridges retrieval composition and web rendering so the grounded answer can enter the page-level dialogue flow from the API boundary.
+
+### HTTP Route
+
+`handleGroundedProjectDialoguePageRoute()` accepts a `POST /projects/{projectId}/dialogue/page` request body with `sessionId`, `messages`, `response`, `query` and optional `limit`, then returns the page HTML response.
+
+`createApiServer()` wraps the same handler in a minimal Node HTTP server for local use.
