@@ -14,7 +14,7 @@ Approved plan:
 
 ## Current Sprint
 
-Active sprint: `Sprint 4`
+Active sprint: `none`
 
 Current gate:
 
