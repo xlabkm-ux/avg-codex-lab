@@ -45,3 +45,27 @@ Decision: Close Sprint 6 as completed for MVP-4 Retrieval and Documents.
 Reason: The sprint delivered the contract-first local retrieval vertical slice: document registration, deterministic chunking/search, snippet-level citation ids, grounded response composition, citation panel rendering and critical retrieval eval fixtures.
 
 Consequence: MVP-4 remains local and deterministic. Production vector database selection, OCR, external web ingestion, long-term document storage and document permission policy stay deferred to later approved milestones.
+
+## 2026-05-20 — Phase 5 working interface activated
+
+Decision: Activate MVP-5 as a working product interface milestone and archive completed MVP-4 task cards.
+
+Reason: MVP-4 proved the retrieval and grounding contracts, but the product now needs a complete browser interface that exposes the main AVG functions to a user without developer mediation.
+
+Consequence: Current war-room files now point to Sprint 7 through Sprint 9. MVP-5 focuses on workspace, dialogue, claim review, documents, grounded retrieval, concept map and artifacts.
+
+## 2026-05-20 — Voice and advanced services deferred to MVP-6
+
+Decision: Move voice, realtime collaboration, production vector search, OCR, external web ingestion, production document storage and other complex services into MVP-6.
+
+Reason: The next product risk is interface completeness and usability, not advanced infrastructure. Designing audio or complex services before the core interface works would blur scope and weaken delivery focus.
+
+Consequence: MVP-5 may leave reversible extension points, but must not implement or deeply design MVP-6 capabilities without human approval.
+
+## 2026-05-20 — AVG-701 MVP-5 interface contract frozen
+
+Decision: Freeze the MVP-5 interface contract and UI API boundary for Sprint 7.
+
+Reason: AVG-702 through AVG-704 need stable workspace, state, rendering and API boundaries before implementation starts.
+
+Consequence: Sprint 7 implementation can proceed with workspace shell, structured dialogue surface and document workspace. Voice, realtime collaboration, production vector storage, OCR and external ingestion remain deferred to MVP-6.

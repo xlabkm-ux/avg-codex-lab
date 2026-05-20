@@ -1,43 +1,101 @@
 # Sprint Backlog
 
-This backlog covers Phase 4: Retrieval and Documents.
+This backlog covers Phase 5: Working Product Interface.
 
-## Sprint 6: MVP-4 Retrieval and Documents
+Source of truth:
 
-Goal: prove a minimal source-grounded document retrieval path.
+- `docs/00-product/mvp-5-working-interface-plan.md`
+- `docs/00-product/mvp-6-advanced-services-plan.md`
 
-Status: completed.
+## Sprint 7: Interface Foundation
+
+Goal: create the integrated web workspace and connect it to existing deterministic local flows.
+
+Status: in progress.
 
 | Task | Owner | Parallel | Risk | Output |
 |---|---|---:|---|---|
-| AVG-601 | Architect | no | red | retrieval and grounding contract freeze |
-| AVG-602 | Backend | no | yellow | document registration and local store boundary |
-| AVG-603 | Retrieval | yes | yellow | chunking and search surface |
-| AVG-604 | Backend/Validation | yes | red | source-grounded response composer with citation boundaries |
-| AVG-605 | Frontend/QA | yes | yellow | citation panel, smoke tests and retrieval eval fixtures |
-
-Model budget:
-
-| Task | Tier | Model | Approval |
-|---|---|---|---|
-| AVG-601 | strong | `gpt-5.5` | sprint approval required |
-| AVG-602 | standard | `gpt-5.4` | automatic after sprint approval |
-| AVG-603 | standard | `gpt-5.4` | automatic after sprint approval |
-| AVG-604 | strong | `gpt-5.5` | sprint approval required |
-| AVG-605 | standard | `gpt-5.4` | automatic after sprint approval |
+| AVG-701 | Architect/Product | no | red | MVP-5 interface contract freeze |
+| AVG-702 | Frontend | yes, after AVG-701 | yellow | workspace shell and local project/session state |
+| AVG-703 | Frontend/Validation | yes, after AVG-701 | red | dialogue surface with structured response details |
+| AVG-704 | Frontend/Backend | yes, after AVG-701 | yellow | document workspace and registration flow |
 
 Exit criteria:
 
-- retrieval contract is approved;
-- document registration returns stable document ids;
-- retrieval returns snippet-level citation ids;
-- source-grounded responses separate cited facts, interpretation and unsupported uncertainty;
-- citation panel renders source references;
-- retrieval smoke tests and critical eval fixtures pass.
+- user can create a project, submit a thought, register a document and see core panels in one browser interface;
+- no voice, realtime collaboration or production services are introduced.
 
-Verification:
+Gate note:
 
-- `pnpm test`
-- `pnpm typecheck`
+- AVG-701 is complete. The interface implementation tasks AVG-702 through AVG-704 are unblocked.
+
+## Sprint 8: Core Product Functions
+
+Goal: make the planned AVG functions usable in the browser.
+
+Status: planned.
+
+| Task | Owner | Parallel | Risk | Output |
+|---|---|---:|---|---|
+| AVG-705 | Frontend/Retrieval | yes | red | grounded retrieval flow with citation panel |
+| AVG-706 | Frontend/Validation | yes | red | claim review panel with risk and repair suggestions |
+| AVG-707 | Frontend/Graph | yes | yellow | concept map surface from session material |
+| AVG-708 | Frontend/Product | yes | yellow | artifact workspace and export |
+
+Exit criteria:
+
+- user can complete the full MVP-5 scenario from dialogue through artifacts;
+- grounded answers, claim review, map and exports share one project state.
+
+## Sprint 9: Product Hardening
+
+Goal: prove the interface is complete enough for user testing.
+
+Status: planned.
+
+| Task | Owner | Parallel | Risk | Output |
+|---|---|---:|---|---|
+| AVG-709 | QA | yes | red | E2E happy path and missing evidence path |
+| AVG-710 | QA/Security | yes | red | prompt-injection-as-source UI proof |
+| AVG-711 | Frontend/QA | yes | yellow | visual and accessibility smoke |
+| AVG-712 | Product/Release | no | yellow | release notes, risk review and rollback plan |
+
+Exit criteria:
+
+- MVP-5 can be tested by a user without developer mediation;
+- release quality gates pass;
+- known limitations are documented.
+
+## Model Budget
+
+| Task | Tier | Model | Approval |
+|---|---|---|---|
+| AVG-701 | strong | `gpt-5.5` | sprint approval required |
+| AVG-702 | standard | `gpt-5.4` | automatic after AVG-701 |
+| AVG-703 | standard | `gpt-5.4` | automatic after AVG-701 |
+| AVG-704 | standard | `gpt-5.4` | automatic after AVG-701 |
+| AVG-705 | standard | `gpt-5.4` | automatic after Sprint 8 approval |
+| AVG-706 | standard | `gpt-5.4` | automatic after Sprint 8 approval |
+| AVG-707 | standard | `gpt-5.4` | automatic after Sprint 8 approval |
+| AVG-708 | standard | `gpt-5.4` | automatic after Sprint 8 approval |
+| AVG-709 | standard | `gpt-5.4` | automatic after Sprint 9 approval |
+| AVG-710 | strong | `gpt-5.5` | sprint approval required |
+| AVG-711 | standard | `gpt-5.4` | automatic after Sprint 9 approval |
+| AVG-712 | standard | `gpt-5.4` | automatic after Sprint 9 approval |
+
+## Required Verification
+
+Before closing MVP-5:
+
 - `pnpm lint`
+- `pnpm typecheck`
+- `pnpm test`
+- `pnpm test:contract`
+- `pnpm test:ai`
 - `pnpm build`
+- `pnpm test:e2e`
+
+Run visual and accessibility checks when implemented:
+
+- `pnpm test:visual`
+- `pnpm test:a11y`

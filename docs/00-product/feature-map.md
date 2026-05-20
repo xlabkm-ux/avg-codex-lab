@@ -32,16 +32,26 @@
 - React Flow map.
 - Map diff.
 
-## MVP-4: Retrieval
+## MVP-4: Retrieval and Documents
 
-- Document upload.
-- Semantic search.
+- Local document registration.
+- Deterministic snippet retrieval.
 - Source-grounded answers.
 - Citation panel.
 
-## MVP-5: Voice
+## MVP-5: Working Interface
 
-- Realtime session.
+- Complete browser workspace.
+- Structured dialogue UI.
+- Claim review panel.
+- Document workspace.
+- Grounded retrieval flow.
+- Concept map view.
+- Artifact export.
+
+## MVP-6: Advanced Services
+
 - Voice capture.
-- Session summary.
-- Artifact generation from spoken thought.
+- Realtime collaboration.
+- Production vector/database services.
+- OCR and external ingestion.

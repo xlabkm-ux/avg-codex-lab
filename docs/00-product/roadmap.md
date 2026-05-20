@@ -20,6 +20,10 @@ Outcome: user can see and edit a concept map.
 
 Outcome: AVG uses user documents and project memory safely.
 
-## Phase 5 — Voice and Collaborative Sessions
+## Phase 5 — Working Product Interface
 
-Outcome: AVG becomes a live creative thinking environment.
+Outcome: user can operate the core AVG system through a complete browser interface.
+
+## Phase 6 — Advanced Services
+
+Outcome: voice, realtime collaboration, production retrieval services and other complex infrastructure are designed after the core interface works.
