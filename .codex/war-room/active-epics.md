@@ -8,7 +8,7 @@ Sprint backlog: `.codex/war-room/sprint-backlog.md`.
 
 ## Epic AVG-MVP-4: Retrieval and Documents
 
-Status: active.
+Status: completed.
 
 Goal: add source-aware retrieval so AVG can work with project documents while preserving claim discipline and map/territory boundaries.
 
@@ -23,6 +23,7 @@ Deliverables:
 
 Planning notes:
 
-- Sprint 6 starts with contract-first work in `AVG-601`.
-- Implementation tasks may start only after the retrieval contract is stable.
-- Prompt or response behavior changes require eval coverage and behavior ledger updates.
+- Sprint 6 completed the contract-first MVP-4 vertical slice.
+- The implementation uses local deterministic retrieval and does not add production vector database dependencies.
+- No prompt behavior changed during MVP-4 completion; retrieval behavior is enforced through contracts, validators, smoke tests and eval fixtures.
+- Remaining work belongs to later milestones: production storage, permissions, vector database selection, OCR and external web ingestion.

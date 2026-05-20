@@ -52,3 +52,11 @@ Implement the minimal chunking and search surface for registered documents.
 - retrieval returns snippet-level citations;
 - ranking behavior is deterministic;
 - package and root checks pass.
+
+## Completion Notes
+
+- Completed in Sprint 6.
+- `@avg/retrieval` now chunks documents into stable snippets and returns deterministic ranked retrieval hits.
+- Retrieval hits include snippet id, document id, project id, score, confidence, citation id, matched text and source label.
+- Project isolation and ranking behavior are covered in `packages/avg-retrieval/tests/document-repository.test.ts`.
+- Verified with `pnpm test`, `pnpm typecheck`, `pnpm lint` and `pnpm build`.

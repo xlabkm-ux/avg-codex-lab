@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import validClaimFixture from "../../../tests/fixtures/claims/valid.json";
 import invalidClaimFixture from "../../../tests/fixtures/claims/invalid-missing-status.json";
@@ -85,5 +86,14 @@ describe("AVG JSON Schema contracts", () => {
 
     expect(result.valid).toBe(false);
     expect(result.errors.some((error) => error.keyword === "required")).toBe(true);
+  });
+
+  it("keeps MVP-4 retrieval routes visible in the OpenAPI contract", () => {
+    const openapi = readFileSync(new URL("../../../schemas/openapi/openapi.yaml", import.meta.url), "utf8");
+
+    expect(openapi).toContain("/projects/{projectId}/documents:");
+    expect(openapi).toContain("/projects/{projectId}/retrieval/search:");
+    expect(openapi).toContain("RegisterDocumentRequest:");
+    expect(openapi).toContain("RetrievalSearchResponse:");
   });
 });

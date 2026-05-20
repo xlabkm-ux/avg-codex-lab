@@ -6,7 +6,7 @@ This backlog covers Phase 4: Retrieval and Documents.
 
 Goal: prove a minimal source-grounded document retrieval path.
 
-Status: active.
+Status: completed.
 
 | Task | Owner | Parallel | Risk | Output |
 |---|---|---:|---|---|
@@ -34,3 +34,10 @@ Exit criteria:
 - source-grounded responses separate cited facts, interpretation and unsupported uncertainty;
 - citation panel renders source references;
 - retrieval smoke tests and critical eval fixtures pass.
+
+Verification:
+
+- `pnpm test`
+- `pnpm typecheck`
+- `pnpm lint`
+- `pnpm build`

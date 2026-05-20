@@ -224,6 +224,98 @@ describe("api app smoke surface", () => {
     expect(routeResponse.body).toContain("The HTTP route should render the grounded page.");
   });
 
+  it("serves document registration and retrieval search routes over the API boundary", () => {
+    const project = createProject("HTTP retrieval project");
+
+    const documentResponse = handleGroundedProjectDialoguePageRoute(
+      "POST",
+      `/projects/${project.id}/documents`,
+      JSON.stringify({
+        title: "HTTP notes",
+        source_kind: "local_markdown",
+        text: "HTTP retrieval keeps citations attached to snippets.",
+        created_at: "2026-05-20T00:00:00.000Z",
+        metadata: {
+          origin: "route-test"
+        }
+      })
+    );
+    const documentBody = JSON.parse(documentResponse.body) as {
+      document: {
+        id: string;
+        project_id: string;
+        title: string;
+      };
+    };
+
+    expect(documentResponse.statusCode).toBe(201);
+    expect(documentBody.document).toMatchObject({
+      project_id: project.id,
+      title: "HTTP notes"
+    });
+
+    const searchResponse = handleGroundedProjectDialoguePageRoute(
+      "POST",
+      `/projects/${project.id}/retrieval/search`,
+      JSON.stringify({
+        query: "citations snippets",
+        limit: 2
+      })
+    );
+    const searchBody = JSON.parse(searchResponse.body) as {
+      hits: Array<{
+        document_id: string;
+        snippet_id: string;
+        citation_id: string;
+        matched_text: string;
+      }>;
+      retrieval_confidence: string;
+    };
+
+    expect(searchResponse.statusCode).toBe(200);
+    expect(searchBody.retrieval_confidence).toBe("high");
+    expect(searchBody.hits[0]).toMatchObject({
+      document_id: documentBody.document.id,
+      snippet_id: `snip_${documentBody.document.id}_001`,
+      citation_id: `cit_${documentBody.document.id}_001`,
+      matched_text: "HTTP retrieval keeps citations attached to snippets."
+    });
+  });
+
+  it("returns explicit route errors for invalid retrieval requests and missing evidence", () => {
+    const project = createProject("HTTP retrieval error project");
+
+    const invalidSearch = handleGroundedProjectDialoguePageRoute(
+      "POST",
+      `/projects/${project.id}/retrieval/search`,
+      JSON.stringify({
+        limit: 1
+      })
+    );
+
+    expect(invalidSearch.statusCode).toBe(400);
+    expect(JSON.parse(invalidSearch.body)).toMatchObject({
+      code: "RETRIEVAL_QUERY_REQUIRED"
+    });
+
+    const emptySearch = handleGroundedProjectDialoguePageRoute(
+      "POST",
+      `/projects/${project.id}/retrieval/search`,
+      JSON.stringify({
+        query: "unmatched evidence"
+      })
+    );
+
+    expect(emptySearch.statusCode).toBe(404);
+    expect(JSON.parse(emptySearch.body)).toMatchObject({
+      code: "RETRIEVAL_NO_EVIDENCE",
+      details: {
+        hits: [],
+        retrieval_confidence: "none"
+      }
+    });
+  });
+
   it("materializes map snapshots from projections and snapshots", () => {
     const projection = projectClaimToMapNode({
       id: "claim_010",

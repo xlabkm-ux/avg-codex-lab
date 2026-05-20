@@ -2,7 +2,7 @@
 
 ## Current Mission
 
-Build AVG Phase 4: Retrieval and Documents.
+Sprint 6 is closed for AVG Phase 4: Retrieval and Documents.
 
 Approved plan:
 
@@ -23,7 +23,10 @@ Current gate:
 
 - `AVG-601` contract freeze is complete.
 - `AVG-602` document registration and local store boundary is complete.
-- Start `AVG-603` deterministic chunking and search surface next.
+- `AVG-603` deterministic chunking and search surface is complete.
+- `AVG-604` grounded response composition is complete.
+- `AVG-605` citation panel and retrieval eval proof is complete.
+- Sprint 6 is closed and ready for PR packaging.
 
 Execution rule:
 
@@ -37,7 +40,9 @@ Execution rule:
 |---|---|---|---|---|---|
 | Architect | agent/architect/AVG-601-retrieval-grounding-contract | retrieval and grounding contract | gpt-5.5 | red | done |
 | Backend | agent/backend/AVG-602-document-registration | document registration and local store boundary | gpt-5.4 | yellow | done |
-| Retrieval | agent/retrieval/AVG-603-chunking-search-surface | chunking and search surface | gpt-5.4 | yellow | ready |
+| Retrieval | agent/retrieval/AVG-603-chunking-search-surface | chunking and search surface | gpt-5.4 | yellow | done |
+| Backend/Validation | agent/backend/AVG-604-grounded-response-composer | grounded response composer | gpt-5.5 | red | done |
+| Frontend/QA | agent/frontend/AVG-605-citation-panel-evals | citation panel and retrieval evals | gpt-5.4 | yellow | done |
 
 ## Shared Contracts Under Freeze
 
@@ -56,8 +61,15 @@ Do not edit without owner:
 
 ## Open Decisions
 
-- Should Sprint 6 use file-backed JSON, in-memory storage or an existing local package boundary?
-- What chunk size and ranking baseline should AVG-603 use for deterministic local retrieval?
+- Production vector database selection remains deferred.
+- External web ingestion remains deferred.
+- Long-term document storage and permission policy remain deferred.
+
+## Closure Record
+
+- Decision log: `.codex/war-room/decisions.md`.
+- Closure archive: `.codex/war-room/archive/mvp-4-sprint-6-2026-05-20/closure-summary.md`.
+- Changelog: `CHANGELOG.md`.
 
 ## Context Watch
 
@@ -65,7 +77,9 @@ Do not edit without owner:
 |---|---|---|---|---|
 | AVG-601 | Architect | green | shared contract design | done |
 | AVG-602 | Backend | green | local store boundary | done |
-| AVG-603 | Retrieval | green | deterministic retrieval surface | use local document store |
+| AVG-603 | Retrieval | green | deterministic retrieval surface | done |
+| AVG-604 | Backend/Validation | green | grounded response boundary | done |
+| AVG-605 | Frontend/QA | green | citation panel and eval fixtures | done |
 
 ## Model Watch
 
@@ -73,6 +87,6 @@ Do not edit without owner:
 |---|---|---|---|
 | AVG-601 | Architect | `gpt-5.5` | done |
 | AVG-602 | Backend | `gpt-5.4` | done |
-| AVG-603 | Retrieval | `gpt-5.4` | ready |
-| AVG-604 | Backend/Validation | `gpt-5.5` | sprint approval required |
-| AVG-605 | Frontend/QA | `gpt-5.4` | after response shape |
+| AVG-603 | Retrieval | `gpt-5.4` | done |
+| AVG-604 | Backend/Validation | `gpt-5.5` | done |
+| AVG-605 | Frontend/QA | `gpt-5.4` | done |

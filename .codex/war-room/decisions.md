@@ -37,3 +37,11 @@ Decision: Freeze the MVP-4 retrieval and grounding contract in `docs/02-ai-syste
 Reason: Backend, retrieval, validation and UI work need a stable citation boundary before implementation starts.
 
 Consequence: AVG-602 may start against a local deterministic document store boundary. Public response schema changes are deferred until AVG-604 confirms the smallest stable grounded response extension.
+
+## 2026-05-20 — Sprint 6 MVP-4 closed
+
+Decision: Close Sprint 6 as completed for MVP-4 Retrieval and Documents.
+
+Reason: The sprint delivered the contract-first local retrieval vertical slice: document registration, deterministic chunking/search, snippet-level citation ids, grounded response composition, citation panel rendering and critical retrieval eval fixtures.
+
+Consequence: MVP-4 remains local and deterministic. Production vector database selection, OCR, external web ingestion, long-term document storage and document permission policy stay deferred to later approved milestones.

@@ -96,6 +96,11 @@ export interface RenderGroundedProjectDialoguePageRequest extends RenderGrounded
   limit?: number;
 }
 
+export interface SearchProjectDocumentsRequest {
+  query: string;
+  limit?: number;
+}
+
 function isClaimProjection(value: MapSnapshotLike): value is ClaimProjection {
   return "node" in value && !("nodes" in value);
 }
@@ -294,6 +299,42 @@ function isRenderGroundedProjectDialoguePageRequest(
   );
 }
 
+function isRegisterProjectDocumentBody(value: unknown): value is RegisterProjectDocumentBody {
+  if (typeof value !== "object" || value === null) {
+    return false;
+  }
+
+  const record = value as Record<string, unknown>;
+  const metadata = record.metadata;
+
+  return (
+    typeof record.title === "string" &&
+    typeof record.source_kind === "string" &&
+    typeof record.text === "string" &&
+    (record.created_at === undefined || typeof record.created_at === "string") &&
+    (
+      metadata === undefined ||
+      (
+        typeof metadata === "object" &&
+        metadata !== null &&
+        Object.values(metadata).every((value) => typeof value === "string")
+      )
+    )
+  );
+}
+
+function isSearchProjectDocumentsRequest(value: unknown): value is SearchProjectDocumentsRequest {
+  if (typeof value !== "object" || value === null) {
+    return false;
+  }
+
+  const record = value as Record<string, unknown>;
+  return (
+    typeof record.query === "string" &&
+    (record.limit === undefined || typeof record.limit === "number")
+  );
+}
+
 export function handleGroundedProjectDialoguePageRoute(
   method: string,
   pathname: string,
@@ -301,6 +342,83 @@ export function handleGroundedProjectDialoguePageRoute(
 ): ApiRouteResponse {
   if (method === "GET" && pathname === "/health") {
     return jsonResponse(200, health());
+  }
+
+  const documentRouteMatch = /^\/projects\/([^/]+)\/documents$/.exec(pathname);
+  if (method === "POST" && documentRouteMatch !== null) {
+    const projectId = documentRouteMatch[1]!;
+
+    try {
+      const parsedBody = JSON.parse(bodyText) as unknown;
+      if (!isRegisterProjectDocumentBody(parsedBody)) {
+        return jsonResponse(400, {
+          code: "DOCUMENT_TEXT_REQUIRED",
+          message: "Document registration requires title, source_kind and text.",
+          details: {}
+        });
+      }
+
+      const result = registerProjectDocument(projectId, parsedBody);
+      return jsonResponse(201, result);
+    } catch (error) {
+      if (error instanceof SyntaxError) {
+        return jsonResponse(400, {
+          code: "INVALID_JSON",
+          message: "The document registration request body must be valid JSON.",
+          details: {}
+        });
+      }
+
+      return jsonResponse(400, {
+        code: "DOCUMENT_TEXT_REQUIRED",
+        message: error instanceof Error ? error.message : "Document registration failed.",
+        details: {}
+      });
+    }
+  }
+
+  const retrievalRouteMatch = /^\/projects\/([^/]+)\/retrieval\/search$/.exec(pathname);
+  if (method === "POST" && retrievalRouteMatch !== null) {
+    const projectId = retrievalRouteMatch[1]!;
+
+    try {
+      const parsedBody = JSON.parse(bodyText) as unknown;
+      if (!isSearchProjectDocumentsRequest(parsedBody)) {
+        return jsonResponse(400, {
+          code: "RETRIEVAL_QUERY_REQUIRED",
+          message: "Retrieval search requires a query string.",
+          details: {}
+        });
+      }
+
+      const result = searchProjectDocuments(projectId, parsedBody.query, {
+        ...(parsedBody.limit !== undefined ? { limit: parsedBody.limit } : {})
+      });
+
+      if (result.hits.length === 0) {
+        return jsonResponse(404, {
+          code: "RETRIEVAL_NO_EVIDENCE",
+          message: "No registered snippets matched the retrieval query.",
+          details: result
+        });
+      }
+
+      return jsonResponse(200, result);
+    } catch (error) {
+      if (error instanceof SyntaxError) {
+        return jsonResponse(400, {
+          code: "INVALID_JSON",
+          message: "The retrieval search request body must be valid JSON.",
+          details: {}
+        });
+      }
+
+      return jsonResponse(400, {
+        code: "RETRIEVAL_QUERY_REQUIRED",
+        message: error instanceof Error ? error.message : "Retrieval search failed.",
+        details: {}
+      });
+    }
   }
 
   const pageRouteMatch = /^\/projects\/([^/]+)\/dialogue\/page$/.exec(pathname);

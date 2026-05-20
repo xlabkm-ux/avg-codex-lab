@@ -20,7 +20,7 @@ Status legend:
 
 | Area | Progress | Current State |
 |---|---:|---|
-| Sprint 6: Retrieval and Documents | 2 / 5 done | AVG-601 and AVG-602 done; AVG-603 is ready |
+| Sprint 6: Retrieval and Documents | 5 / 5 done | MVP-4 vertical slice implemented and verified |
 
 ## Sprint 6: MVP-4 Retrieval and Documents
 
@@ -28,9 +28,22 @@ Status legend:
 |---|---|---|---:|---|
 | AVG-601 | Architect | done | 100% | retrieval and grounding contract frozen in docs; downstream tasks unblocked |
 | AVG-602 | Backend | done | 100% | document registration and local store boundary implemented in `@avg/retrieval` and `@avg/api` |
-| AVG-603 | Retrieval | ready | 0% | implement deterministic chunking and search surface |
-| AVG-604 | Backend/Validation | blocked | 0% | waits for retrieval and response contract |
-| AVG-605 | Frontend/QA | blocked | 0% | waits for citation response shape |
+| AVG-603 | Retrieval | done | 100% | deterministic chunking and search surface implemented in `@avg/retrieval`; root checks pass |
+| AVG-604 | Backend/Validation | done | 100% | grounded response composer and API response composition implemented; low-confidence and prompt-injection tests pass |
+| AVG-605 | Frontend/QA | done | 100% | citation panel, retrieval smoke coverage and critical eval fixtures are in place |
+
+## Verification
+
+- `pnpm --filter @avg/api test`
+- `pnpm --filter @avg/validation test`
+- `pnpm --filter @avg/evals test`
+- `pnpm --filter @avg/api typecheck`
+- `pnpm --filter @avg/validation typecheck`
+- `pnpm --filter @avg/evals typecheck`
+- `pnpm test`
+- `pnpm typecheck`
+- `pnpm lint`
+- `pnpm build`
 
 ## Update Rules
 

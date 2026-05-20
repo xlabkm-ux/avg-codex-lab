@@ -52,6 +52,47 @@ export interface ClaimRiskAssessmentReport {
   shouldRepair: boolean;
 }
 
+export interface AvgRetrievalHit {
+  snippet_id: string;
+  document_id: string;
+  project_id: string;
+  score: number;
+  confidence: "low" | "medium" | "high";
+  citation_id: string;
+  matched_text: string;
+  source_label: string;
+}
+
+export interface AvgCitation {
+  id: string;
+  document_id: string;
+  snippet_id: string;
+  source_label: string;
+  quoted_text: string;
+  relevance: "supporting" | "context" | "contradicting";
+}
+
+export interface AvgGroundedResponseBoundary {
+  citations: AvgCitation[];
+  grounded_claims: string[];
+  interpretations: string[];
+  unsupported_claims: string[];
+  retrieval_confidence: "none" | "low" | "medium" | "high";
+  boundary_statement: string;
+}
+
+export interface AvgGroundedResponse {
+  response: AvgStructuredResponse;
+  grounding: AvgGroundedResponseBoundary;
+}
+
+export interface GroundedResponseCompositionReport {
+  responseSchema: ValidationResult;
+  groundedResponse?: AvgGroundedResponse;
+  accepted: boolean;
+  boundaryNotes: string[];
+}
+
 function dedupe(values: string[]): string[] {
   return [...new Set(values)];
 }
@@ -273,6 +314,25 @@ function analyzeClaimRisk(
 
 function normalizeText(value: string): string {
   return value.trim().toLowerCase();
+}
+
+function confidenceFromHits(hits: AvgRetrievalHit[]): "none" | "low" | "medium" | "high" {
+  if (hits.length === 0) {
+    return "none";
+  }
+
+  return hits[0]!.confidence;
+}
+
+function citationFromHit(hit: AvgRetrievalHit): AvgCitation {
+  return {
+    id: hit.citation_id,
+    document_id: hit.document_id,
+    snippet_id: hit.snippet_id,
+    source_label: hit.source_label,
+    quoted_text: hit.matched_text,
+    relevance: hit.confidence === "high" ? "supporting" : "context"
+  };
 }
 
 function scoreSignals(statement: string): {
@@ -538,6 +598,87 @@ export function classifyClaimRisk(value: unknown): ClaimRiskAssessmentReport {
   const validation = validateClaimContract(claim);
   const classification = classifyClaimDiscipline(claim);
   return analyzeClaimRisk(claim, validation, classification);
+}
+
+export function composeGroundedResponse(
+  response: unknown,
+  hits: AvgRetrievalHit[]
+): GroundedResponseCompositionReport {
+  const responseSchema = validateAvgResponse(response);
+
+  if (!responseSchema.valid) {
+    return {
+      responseSchema,
+      accepted: false,
+      boundaryNotes: [
+        "Grounded response composition stops until the AVG structured response satisfies its schema.",
+        ...formatSchemaNotes(responseSchema.errors)
+      ]
+    };
+  }
+
+  const structuredResponse = response as AvgStructuredResponse;
+  const citations = hits.map(citationFromHit);
+  const claimReport = extractClaimsFromAvgResponse(structuredResponse);
+  const groundedClaims: string[] = [];
+  const interpretations: string[] = [];
+  const unsupportedClaims: string[] = [];
+
+  for (const record of claimReport.claims) {
+    const claimStatement = record.claim.statement;
+
+    if (record.sourceField === "next_action") {
+      interpretations.push(claimStatement);
+      continue;
+    }
+
+    if (citations.length > 0) {
+      groundedClaims.push(claimStatement);
+      continue;
+    }
+
+    unsupportedClaims.push(claimStatement);
+  }
+
+  const retrievalConfidence = confidenceFromHits(hits);
+  const boundaryStatement =
+    retrievalConfidence === "none"
+      ? "No registered snippets matched this answer, so it remains an unsupported working map."
+      : groundedClaims.length > 0
+        ? "This answer is grounded only in registered project document snippets."
+        : "Registered snippets were found, but the answer still needs clearer citation alignment.";
+
+  if (retrievalConfidence === "low") {
+    unsupportedClaims.push("Retrieval confidence is low enough to require a visible boundary statement.");
+  }
+
+  return {
+    responseSchema,
+    groundedResponse: {
+      response: structuredResponse,
+      grounding: {
+        citations,
+        grounded_claims: dedupe(groundedClaims),
+        interpretations: dedupe(interpretations),
+        unsupported_claims: dedupe(unsupportedClaims),
+        retrieval_confidence: retrievalConfidence,
+        boundary_statement: boundaryStatement
+      }
+    },
+    accepted: claimReport.accepted && groundedClaims.length > 0 && citations.length > 0,
+    boundaryNotes: dedupe([
+      ...claimReport.boundaryNotes,
+      ...(retrievalConfidence === "none"
+        ? ["No retrieval evidence was available for grounded composition."]
+        : []),
+      ...(retrievalConfidence === "low"
+        ? ["Retrieval confidence is low; the boundary statement must remain visible."]
+        : []),
+      ...(unsupportedClaims.length > 0
+        ? ["Some response claims remain unsupported by the retrieved snippet set."]
+        : [])
+    ])
+  };
 }
 
 export function isAvgClaim(value: unknown): value is AvgClaim {

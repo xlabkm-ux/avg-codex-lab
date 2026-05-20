@@ -18,3 +18,4 @@ See `.codex/agent-registry.md`.
 - `map-node.schema.json` and `map-edge.schema.json` validate map artifacts.
 - `avg-response.schema.json` validates the Sprint 1 structured dialogue response.
 - `document.schema.json` validates the MVP-4 local document reference.
+- `schemas/openapi/openapi.yaml` exposes the MVP-4 document registration and retrieval search API paths.

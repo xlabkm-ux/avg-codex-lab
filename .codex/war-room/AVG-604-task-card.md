@@ -55,3 +55,12 @@ Compose source-grounded AVG responses with explicit citation and uncertainty bou
 - grounded response composer is implemented;
 - citation boundaries are covered by tests;
 - behavior ledger is updated if prompt behavior changes.
+
+## Completion Notes
+
+- Completed in Sprint 6.
+- `composeGroundedResponse()` wraps structured AVG responses with citations, grounded claims, interpretations, unsupported claims, retrieval confidence and boundary statement.
+- Low-confidence retrieval remains visible as a boundary risk.
+- Prompt-injection text inside retrieved snippets is preserved as quoted source content, not treated as instructions.
+- No prompt behavior changed, so behavior ledger update was not required.
+- Verified with `pnpm --filter @avg/validation test`, `pnpm --filter @avg/api test`, `pnpm test`, `pnpm typecheck`, `pnpm lint` and `pnpm build`.

@@ -10,3 +10,10 @@
 | Document privacy leakage | high | Security/Backend | local-only MVP boundary and no external ingestion by default |
 | Over-broad document scope | medium | Product/Architect | MVP-4 accepts only project-local registered documents |
 | Weak retrieval observability | medium | QA/DevOps | log query, citation ids and retrieval confidence in tests |
+
+## Sprint 6 Risk Notes
+
+- Retrieval hallucination is mitigated in MVP-4 by grounded response composition, unsupported-claim boundaries and retrieval eval fixtures.
+- Citation drift is mitigated by deterministic snippet ids, citation ids and route/unit tests.
+- Prompt-injection inside sources is covered by `tests/ai-evals/retrieval/prompt-injection-source.yaml` and composer tests that keep source text quoted as content.
+- Production vector database complexity remains deferred by design.

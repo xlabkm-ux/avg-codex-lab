@@ -19,6 +19,7 @@ See `.codex/agent-registry.md`.
 - `extractClaimsFromAvgResponse` extracts schema-bound claim candidates from a validated AVG structured response.
 - `classifyClaimDiscipline` classifies claim status and language mode from claim text.
 - `classifyClaimRisk` detects strong-word, dogma and map/territory risks and returns repair suggestions.
+- `composeGroundedResponse` wraps a structured response with citations, grounded claims, interpretations and unsupported claims.
 - `isAvgClaim` and `isAvgStructuredResponse` expose type guards for downstream packages.
 
 ## Contract Notes

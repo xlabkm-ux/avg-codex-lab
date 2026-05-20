@@ -53,3 +53,11 @@ Expose citations in the web surface and prove the retrieval path with smoke test
 - citation panel renders stable citation ids;
 - retrieval smoke coverage passes;
 - eval fixtures exist for critical source-grounding behavior.
+
+## Completion Notes
+
+- Completed in Sprint 6.
+- Web grounded response panel renders citation id, snippet id, document id, quoted text, relevance, grounded claims, interpretations, unsupported claims and boundary statement.
+- Retrieval eval fixtures now cover source grounding, unsupported claims, citation completeness, low confidence, prompt injection and map/territory boundary preservation.
+- API route smoke coverage proves document registration, retrieval search and grounded dialogue page rendering.
+- Verified with `pnpm --filter @avg/web test`, `pnpm --filter @avg/evals test`, `pnpm test`, `pnpm typecheck`, `pnpm lint` and `pnpm build`.

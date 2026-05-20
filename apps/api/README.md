@@ -13,6 +13,8 @@ Fastify API: sessions, projects, messages, tools, OpenAI orchestration.
 - `getProjectDocument()`, `getProjectDocumentText()` and `listProjectDocuments()` expose the MVP-4 local document boundary.
 - `searchProjectDocuments()` and `composeGroundedProjectResponse()` expose the grounded retrieval boundary.
 - `renderGroundedProjectDialoguePage()` composes grounded retrieval and renders the full dialogue page through `@avg/web`.
+- `handleGroundedProjectDialoguePageRoute()` serves document registration over `POST /projects/{projectId}/documents`.
+- `handleGroundedProjectDialoguePageRoute()` serves retrieval search over `POST /projects/{projectId}/retrieval/search`.
 - `handleGroundedProjectDialoguePageRoute()` serves the grounded dialogue page over `POST /projects/{projectId}/dialogue/page`.
 - `createApiServer()` exposes a minimal Node HTTP server that uses the same route handler.
 
@@ -106,6 +108,10 @@ This helper bridges retrieval composition and web rendering so the grounded answ
 
 ### HTTP Route
 
-`handleGroundedProjectDialoguePageRoute()` accepts a `POST /projects/{projectId}/dialogue/page` request body with `sessionId`, `messages`, `response`, `query` and optional `limit`, then returns the page HTML response.
+`handleGroundedProjectDialoguePageRoute()` exposes the minimal MVP-4 HTTP contract:
+
+- `POST /projects/{projectId}/documents` registers local project document text.
+- `POST /projects/{projectId}/retrieval/search` returns ranked snippet hits and retrieval confidence.
+- `POST /projects/{projectId}/dialogue/page` accepts `sessionId`, `messages`, `response`, `query` and optional `limit`, then returns the page HTML response.
 
 `createApiServer()` wraps the same handler in a minimal Node HTTP server for local use.
