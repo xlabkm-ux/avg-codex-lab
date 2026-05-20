@@ -14,6 +14,7 @@
     "clean": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\""
   },
   "dependencies": {
+    "@avg/graph": "workspace:*",
     "@avg/schemas": "workspace:*",
     "@avg/validation": "workspace:*"
   }

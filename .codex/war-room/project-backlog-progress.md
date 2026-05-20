@@ -25,6 +25,7 @@ Status legend:
 | Sprint 2: Web Dialogue Slice | 5 / 5 done | all Sprint 2 tasks are done and validated |
 | Sprint 3: Validation Core | 5 / 5 done | AVG-301, AVG-302, AVG-303, AVG-304 and AVG-305 are done |
 | Sprint 4: Validation UX/API | 5 / 5 done | claim-safety, metaphor boundary, validation API, validation panel and behavior docs are complete |
+| Sprint 5: Concept Map | 5 / 5 done | AVG-501 concept map contract freeze, AVG-502 graph projection surface, AVG-503 map diff artifact API, AVG-504 concept map shell and AVG-505 QA smoke coverage are done |
 
 ## Sprint 0: MVP-0 Repository Operating System
 
@@ -84,6 +85,16 @@ Current exit status: `done`.
 | AVG-403 | Backend | done | 100% | `validateClaimRequest` is exposed in `apps/api` and covered by the API smoke test suite |
 | AVG-404 | Frontend | done | 100% | structured validation output is rendered in `apps/web` through the details panel and smoke tests |
 | AVG-405 | Docs | done | 100% | behavior ledger and release notes capture the Sprint 4 validation and eval changes |
+
+## Sprint 5: MVP-3 Concept Map
+
+| Task | Owner | Status | Progress | Evidence / Next Step |
+|---|---|---|---:|---|
+| AVG-501 | Architect | done | 100% | concept map contract freeze is written against the existing graph schema surface and aligned with `@avg/schemas` |
+| AVG-502 | Knowledge Graph | done | 100% | graph projection and in-memory repository surface are implemented and validated with package and root checks |
+| AVG-503 | Backend | done | 100% | map diff artifact API and sync helpers are implemented on top of `diffGraphSnapshots()` |
+| AVG-504 | Frontend | done | 100% | concept map shell and React Flow-ready boundary are implemented with package and root checks |
+| AVG-505 | QA | done | 100% | graph, API and UI smoke coverage is implemented and verified with package and root checks |
 
 ## Update Rules
 

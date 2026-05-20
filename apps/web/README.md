@@ -11,6 +11,8 @@ Minimal web dialogue shell for Sprint 2.
 - `renderDialogueMessageSurface(projectId, sessionId, messages)` renders a deterministic HTML message thread with explicit empty and populated states.
 - `createStructuredResponseDetailsPanel(response)` builds a contract-shaped response details view model.
 - `renderStructuredResponseDetailsPanel(response)` renders the structured response summary, contract fields, risk markers and artifacts.
+- `createConceptMapShell(source)` builds the React Flow-ready concept map shell from a graph snapshot or projection.
+- `renderConceptMapShell(source)` renders an explicit empty or populated concept map surface with map/territory boundary copy.
 
 ## Usage Notes
 
@@ -20,6 +22,7 @@ The package intentionally stays framework-free for the first web slice. It gives
 
 ```ts
 import {
+  renderConceptMapShell,
   renderDialogueMessageSurface,
   renderProjectSessionPage,
   renderStructuredResponseDetailsPanel,
@@ -44,4 +47,7 @@ const details = renderStructuredResponseDetailsPanel({
   map_territory_boundary: "preserved",
   next_action: "continue with the next message",
 });
+const conceptMap = renderConceptMapShell();
 ```
+
+The concept map shell keeps the boundary explicit and treats the graph as a working map, not Reality.

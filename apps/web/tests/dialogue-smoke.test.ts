@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { validateAvgResponse } from "@avg/schemas";
 import {
+  renderConceptMapShell,
   renderDialogueMessageSurface,
   renderProjectSessionPage,
   renderStructuredResponseDetailsPanel,
@@ -29,11 +30,13 @@ describe("first dialogue smoke path", () => {
       artifacts: ["session outline"],
     } as const;
     const details = renderStructuredResponseDetailsPanel(response);
+    const conceptMap = renderConceptMapShell();
 
     expect(validateAvgResponse(response).valid).toBe(true);
     expect(shell).toContain('data-shell="project-session-shell"');
     expect(messageSurface).toContain('data-surface="dialogue-message-surface"');
     expect(details).toContain('data-panel="structured-response-details-panel"');
+    expect(conceptMap).toContain('data-shell="concept-map-shell"');
     expect(shell).toContain("Project project-7");
     expect(messageSurface).toContain("raw thought");
     expect(details).toContain("A structured reply with explicit boundaries");

@@ -1,6 +1,6 @@
 # Sprint Backlog
 
-This backlog covers the approved MVP-0 to MVP-2 development plan.
+This backlog covers the approved MVP-0 to MVP-3 development plan.
 
 ## Sprint 0: MVP-0 Repository Operating System
 
@@ -145,3 +145,40 @@ Exit criteria:
 - critical eval thresholds pass;
 - validation output is visible to the user;
 - behavior changes are documented.
+
+## Sprint 5: MVP-3 Concept Map
+
+Goal: turn validated terms and claims into a disciplined visual concept map.
+
+Status: completed.
+
+| Task | Owner | Parallel | Risk | Output |
+|---|---|---:|---|---|
+| AVG-501 | Architect | no | red | MVP-3 concept map contract freeze |
+| AVG-502 | Knowledge Graph | yes | yellow | graph model projections and repository surface |
+| AVG-503 | Backend | yes | yellow | map diff artifact API and sync helpers |
+| AVG-504 | Frontend | yes | yellow | concept map canvas and React Flow-ready shell |
+| AVG-505 | QA | yes | yellow | graph, API and UI contract smoke tests |
+
+Model budget:
+
+| Task | Tier | Model | Approval |
+|---|---|---|---|
+| AVG-501 | strong | `gpt-5.5` | sprint approval required |
+| AVG-502 | standard | `gpt-5.4` | automatic after sprint approval |
+| AVG-503 | standard | `gpt-5.4` | automatic after sprint approval |
+| AVG-504 | standard | `gpt-5.4` | automatic after sprint approval |
+| AVG-505 | standard | `gpt-5.4` | automatic after sprint approval |
+
+Exit criteria:
+
+- MVP-3 concept map contract is approved;
+- graph projections preserve node coordinates and boundary metadata;
+- concept map shell can render a validated graph projection;
+- map diff artifact shape is covered by tests;
+- Sprint 5 was activated and completed after the planning gate was cleared.
+
+Completion note:
+
+- Sprint 5 completed with AVG-501 through AVG-505 done and verified;
+- package-level smoke coverage, root `pnpm test:contract`, `pnpm typecheck`, and `pnpm test` all passed.

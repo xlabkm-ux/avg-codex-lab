@@ -2,7 +2,7 @@
 
 ## Current Mission
 
-Build AVG MVP-0 to MVP-2: repository operating system, structured dialogue and claim validation.
+Build AVG MVP-0 to MVP-3: repository operating system, structured dialogue, claim validation and concept map.
 
 Approved plan:
 
@@ -18,15 +18,15 @@ Active sprint: `none`
 
 Current gate:
 
-- Sprint 4 complete; claim safety, metaphor boundary, validation API, validation panel and behavior docs are done
+- Sprint 5 complete
 
 Approved gate:
 
-- `AVG-305` - unit and contract tests
+- `AVG-505` - graph, API and UI smoke coverage
 
 Execution rule:
 
-- keep later milestone planning deferred until MVP-2 review is explicitly approved.
+- keep completed Sprint 5 work documented and avoid reopening MVP-3 unless a new task is approved.
 
 ## Active Branches
 

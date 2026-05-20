@@ -38,6 +38,9 @@ importers:
 
   apps/api:
     dependencies:
+      '@avg/graph':
+        specifier: workspace:*
+        version: link:../../packages/avg-graph
       '@avg/schemas':
         specifier: workspace:*
         version: link:../../packages/avg-schemas
@@ -49,6 +52,9 @@ importers:
 
   apps/web:
     dependencies:
+      '@avg/graph':
+        specifier: workspace:*
+        version: link:../../packages/avg-graph
       '@avg/schemas':
         specifier: workspace:*
         version: link:../../packages/avg-schemas

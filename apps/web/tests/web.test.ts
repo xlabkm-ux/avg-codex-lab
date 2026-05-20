@@ -1,14 +1,18 @@
 import { describe, expect, it } from "vitest";
 import {
   createDialogueMessageSurface,
+  createConceptMapShell,
   createProjectSessionShell,
   createStructuredResponseDetailsPanel,
+  materializeConceptMapSnapshot,
+  renderConceptMapShell,
   renderDialogueMessageSurface,
   renderProjectSessionPage,
   renderStructuredResponseDetailsPanel,
   renderShellTitle,
 } from "../src/index";
 import { validateAvgResponse } from "@avg/schemas";
+import { projectClaimToMapNode } from "@avg/graph";
 
 describe("web app smoke surface", () => {
   it("exposes a stable shell title", () => {
@@ -105,6 +109,66 @@ describe("web app smoke surface", () => {
       title: "AVG Codex Lab",
       response,
     });
+  });
+
+  it("creates a minimal concept map shell", () => {
+    const shell = createConceptMapShell();
+
+    expect(shell).toEqual({
+      kind: "concept-map-shell",
+      title: "AVG Codex Lab",
+      subtitle: "Concept map shell",
+      emptyStateTitle: "No map yet",
+      emptyStateBody:
+        "Pass a validated graph projection or snapshot to render the first working map.",
+      snapshot: { nodes: [], edges: [] },
+      nodeCount: 0,
+      edgeCount: 0,
+    });
+  });
+
+  it("materializes concept map snapshots from projections", () => {
+    const projection = projectClaimToMapNode({
+      id: "claim-7",
+      statement: "Maps should keep their boundary explicit.",
+      claim_status: "boundary_statement",
+      language_mode: "operational_description",
+      risks: ["map_territory_confusion"],
+      scope: "Sprint 5 shell",
+    });
+
+    expect(materializeConceptMapSnapshot(projection)).toEqual({
+      nodes: [projection.node],
+      edges: projection.edges,
+    });
+  });
+
+  it("renders a deterministic concept map shell", () => {
+    const projection = projectClaimToMapNode({
+      id: "claim-8",
+      statement: "Concept maps should be React Flow ready.",
+      claim_status: "working_distinction",
+      language_mode: "operational_description",
+      risks: ["layout_drift"],
+      source_refs: ["source-1"],
+      scope: "Sprint 5 shell",
+    });
+
+    const renderedEmpty = renderConceptMapShell();
+    const renderedPopulated = renderConceptMapShell(projection);
+
+    expect(renderedEmpty).toContain('data-shell="concept-map-shell"');
+    expect(renderedEmpty).toContain('data-node-count="0"');
+    expect(renderedEmpty).toContain("No map yet");
+    expect(renderedEmpty).toContain("The map is a working projection, not Reality.");
+
+    expect(renderedPopulated).toContain('data-shell="concept-map-shell"');
+    expect(renderedPopulated).toContain('data-node-count="1"');
+    expect(renderedPopulated).toContain('data-edge-count="1"');
+    expect(renderedPopulated).toContain("React Flow-ready boundary");
+    expect(renderedPopulated).toContain("Concept maps should be React Flow ready.");
+    expect(renderedPopulated).toContain("working_distinction");
+    expect(renderedPopulated).toContain("source-1");
   });
 
   it("renders a deterministic structured response details panel", () => {

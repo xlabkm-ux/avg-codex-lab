@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "dependencies": {
+    "@avg/graph": "workspace:*",
     "@avg/schemas": "workspace:*"
   },
   "main": "./dist/index.js",

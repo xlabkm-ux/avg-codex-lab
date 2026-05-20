@@ -61,7 +61,7 @@ Deliverables:
 
 ## Epic AVG-MVP-3: Concept Map
 
-Status: deferred until MVP-2 is complete.
+Status: completed.
 
 Goal: store and visualize terms, claims and relations.
 
@@ -71,3 +71,8 @@ Deliverables:
 - Neo4j repository;
 - React Flow UI;
 - map diff artifact.
+
+Planning notes:
+
+- Sprint 5 backlog and task cards were prepared in `.codex/war-room/`.
+- MVP-3 implementation completed through AVG-505 and the Sprint 5 progress view is closed.

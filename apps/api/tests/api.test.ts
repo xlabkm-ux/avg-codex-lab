@@ -3,13 +3,16 @@ import {
   appendMessage,
   createProject,
   createProjectSessionMessage,
+  createMapDiffArtifact,
   createSession,
   getMessage,
   getProject,
   getSession,
   health,
+  materializeMapSnapshot,
   validateClaimRequest
 } from "../src/index";
+import { createEmptyGraphSnapshot, projectClaimToMapNode } from "@avg/graph";
 
 describe("api app smoke surface", () => {
   it("exposes health status", () => {
@@ -47,5 +50,31 @@ describe("api app smoke surface", () => {
     expect(record.session.projectId).toBe(record.project.id);
     expect(record.message.sessionId).toBe(record.session.id);
     expect(record.message.content).toBe("Capture the main idea.");
+  });
+
+  it("materializes map snapshots from projections and snapshots", () => {
+    const projection = projectClaimToMapNode({
+      id: "claim_010",
+      statement: "Map diffs should preserve boundary metadata.",
+      claim_status: "boundary_statement",
+      language_mode: "operational_description",
+      risks: ["boundary_loss"],
+      source_refs: ["source_010"],
+      scope: "Sprint 5 artifact surface"
+    });
+
+    const from = createEmptyGraphSnapshot();
+    const to = materializeMapSnapshot(projection);
+    const artifact = createMapDiffArtifact(from, projection);
+
+    expect(to).toEqual({
+      nodes: [projection.node],
+      edges: projection.edges
+    });
+    expect(artifact.kind).toBe("map_diff");
+    expect(artifact.from).toEqual(from);
+    expect(artifact.to).toEqual(to);
+    expect(artifact.diff.addedNodes).toEqual([projection.node]);
+    expect(artifact.diff.addedEdges).toEqual(projection.edges);
   });
 });

@@ -1,3 +1,11 @@
+import {
+  cloneGraphSnapshot,
+  createEmptyGraphSnapshot,
+  diffGraphSnapshots,
+  type ClaimProjection,
+  type GraphDiff,
+  type GraphSnapshot
+} from "@avg/graph";
 import { validateClaimContract } from "@avg/validation";
 
 export interface HealthResponse {
@@ -29,6 +37,15 @@ export interface ProjectSessionMessageApi {
   message: MessageRecord;
 }
 
+export type MapSnapshotLike = GraphSnapshot | ClaimProjection;
+
+export interface MapDiffArtifact {
+  kind: "map_diff";
+  from: GraphSnapshot;
+  to: GraphSnapshot;
+  diff: GraphDiff;
+}
+
 type IdPrefix = "project" | "session" | "message";
 
 const counters: Record<IdPrefix, number> = {
@@ -40,6 +57,25 @@ const counters: Record<IdPrefix, number> = {
 const projects = new Map<string, ProjectRecord>();
 const sessions = new Map<string, SessionRecord>();
 const messages = new Map<string, MessageRecord>();
+
+function isClaimProjection(value: MapSnapshotLike): value is ClaimProjection {
+  return "node" in value && !("nodes" in value);
+}
+
+function snapshotFromProjection(projection: ClaimProjection): GraphSnapshot {
+  return cloneGraphSnapshot({
+    nodes: [projection.node],
+    edges: projection.edges
+  });
+}
+
+export function materializeMapSnapshot(value: MapSnapshotLike): GraphSnapshot {
+  if (isClaimProjection(value)) {
+    return snapshotFromProjection(value);
+  }
+
+  return cloneGraphSnapshot(value);
+}
 
 function nextId(prefix: IdPrefix): string {
   counters[prefix] += 1;
@@ -116,6 +152,24 @@ export function createProjectSessionMessage(
   const message = appendMessage(session.id, content);
 
   return { project, session, message };
+}
+
+export function createMapDiffArtifact(from: MapSnapshotLike, to: MapSnapshotLike): MapDiffArtifact {
+  const fromSnapshot = materializeMapSnapshot(from);
+  const toSnapshot = materializeMapSnapshot(to);
+
+  return {
+    kind: "map_diff",
+    from: fromSnapshot,
+    to: toSnapshot,
+    diff: diffGraphSnapshots(fromSnapshot, toSnapshot)
+  };
+}
+
+export function createEmptyMapDiffArtifact(): MapDiffArtifact {
+  const snapshot = createEmptyGraphSnapshot();
+
+  return createMapDiffArtifact(snapshot, snapshot);
 }
 
 export function validateClaimRequest(body: unknown) {
