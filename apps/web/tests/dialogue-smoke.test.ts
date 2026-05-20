@@ -1,17 +1,25 @@
 import { describe, expect, it } from "vitest";
 import { validateAvgResponse } from "@avg/schemas";
 import {
+  createLocalWorkspaceState,
   renderConceptMapShell,
   renderDialogueMessageSurface,
   renderDialogueFlowPageFromGroundedReport,
   renderDialogueMessageSurfaceFromGroundedReport,
   renderProjectSessionPage,
   renderStructuredResponseDetailsPanel,
+  renderWorkspaceShell,
 } from "../src/index";
 import { composeGroundedResponse } from "@avg/validation";
 
 describe("first dialogue smoke path", () => {
   it("renders the minimal web dialogue flow end to end", () => {
+    const workspace = renderWorkspaceShell(
+      createLocalWorkspaceState("Smoke project", "Smoke session", {
+        projectId: "project-7",
+        sessionId: "session-3",
+      }),
+    );
     const shell = renderProjectSessionPage("project-7", "session-3");
     const response = {
       id: "response-7",
@@ -53,6 +61,12 @@ describe("first dialogue smoke path", () => {
     const conceptMap = renderConceptMapShell();
 
     expect(validateAvgResponse(response).valid).toBe(true);
+    expect(workspace).toContain('data-shell="workspace-shell"');
+    expect(workspace).toContain("Local only");
+    expect(workspace).toContain("Dialogue");
+    expect(workspace).toContain("Documents");
+    expect(workspace).toContain("Map");
+    expect(workspace).toContain("Artifacts");
     expect(shell).toContain('data-shell="project-session-shell"');
     expect(messageSurface).toContain('data-surface="dialogue-message-surface"');
     expect(details).toContain('data-panel="structured-response-details-panel"');

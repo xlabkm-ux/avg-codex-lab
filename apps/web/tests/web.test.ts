@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
+  createLocalProjectRecord,
+  createLocalSessionRecord,
+  createLocalWorkspaceState,
   createGroundedResponseDetailsPanel,
   createDialogueMessageSurface,
   createDialogueMessageSurfaceFromGroundedReport,
@@ -7,16 +10,22 @@ import {
   createConceptMapShell,
   createProjectSessionShell,
   createStructuredResponseDetailsPanel,
+  createWorkspaceShell,
+  openLocalWorkspaceProject,
   materializeConceptMapSnapshot,
+  parseWorkspaceState,
   renderConceptMapShell,
   renderDialogueMessageSurface,
   renderDialogueMessageSurfaceFromGroundedReport,
   renderDialogueFlowPage,
   renderDialogueFlowPageFromGroundedReport,
   renderProjectSessionPage,
+  renderWorkspaceShell,
   renderGroundedResponseDetailsPanel,
   renderStructuredResponseDetailsPanel,
   renderShellTitle,
+  selectWorkspaceSurface,
+  serializeWorkspaceState,
 } from "../src/index";
 import { validateAvgResponse } from "@avg/schemas";
 import { projectClaimToMapNode } from "@avg/graph";
@@ -55,6 +64,134 @@ describe("web app smoke surface", () => {
     expect(page).toContain("Project project-7");
     expect(page).toContain("Session session-3");
     expect(page).toContain("Submit idea");
+  });
+
+  it("creates browser-local workspace state for a project and session", () => {
+    const state = createLocalWorkspaceState("Research map", "First pass", {
+      projectId: "project-702",
+      sessionId: "session-702",
+      createdAt: "2026-05-20T10:00:00.000Z",
+    });
+
+    expect(state).toEqual({
+      kind: "workspace-state",
+      project: {
+        id: "project-702",
+        title: "Research map",
+        accessMode: "browser_local",
+        createdAt: "2026-05-20T10:00:00.000Z",
+      },
+      session: {
+        id: "session-702",
+        projectId: "project-702",
+        title: "First pass",
+        createdAt: "2026-05-20T10:00:00.000Z",
+      },
+      selectedSurface: "dialogue",
+      contractVersion: "mvp-5",
+      localOnly: true,
+    });
+  });
+
+  it("opens an existing local project and prevents project/session drift", () => {
+    const project = createLocalProjectRecord("Claim map", {
+      id: "project-claim-map",
+      createdAt: "2026-05-20T10:00:00.000Z",
+    });
+    const session = createLocalSessionRecord(project.id, "Review session", {
+      id: "session-review",
+      createdAt: "2026-05-20T10:00:00.000Z",
+    });
+
+    const state = openLocalWorkspaceProject(project, session, "documents");
+
+    expect(state.selectedSurface).toBe("documents");
+    expect(state.project.id).toBe("project-claim-map");
+    expect(state.session.projectId).toBe("project-claim-map");
+    expect(() =>
+      openLocalWorkspaceProject(
+        project,
+        { ...session, projectId: "other-project" },
+        "dialogue",
+      ),
+    ).toThrow("Session project id must match the active project id.");
+  });
+
+  it("creates a workspace shell with stable navigation and local-only boundary", () => {
+    const state = createLocalWorkspaceState("Boundary work", "Map pass", {
+      projectId: "project-boundary",
+      sessionId: "session-map",
+      selectedSurface: "map",
+    });
+    const shell = createWorkspaceShell(state);
+
+    expect(shell.kind).toBe("workspace-shell");
+    expect(shell.localOnlyLabel).toBe("Local only");
+    expect(shell.localOnlyBoundary).toContain("browser-local");
+    expect(shell.technicalDetails).toEqual({
+      projectId: "project-boundary",
+      sessionId: "session-map",
+      contractVersion: "mvp-5",
+    });
+    expect(shell.navigation).toEqual([
+      { surface: "dialogue", label: "Dialogue", active: false },
+      { surface: "documents", label: "Documents", active: false },
+      { surface: "retrieval", label: "Retrieval", active: false },
+      { surface: "claim-review", label: "Claim Review", active: false },
+      { surface: "map", label: "Map", active: true },
+      { surface: "artifacts", label: "Artifacts", active: false },
+    ]);
+  });
+
+  it("selects workspace surfaces without changing project/session identity", () => {
+    const state = createLocalWorkspaceState("Artifact work", "Session notes", {
+      projectId: "project-artifact",
+      sessionId: "session-artifact",
+    });
+    const nextState = selectWorkspaceSurface(state, "artifacts");
+
+    expect(nextState.selectedSurface).toBe("artifacts");
+    expect(nextState.project.id).toBe("project-artifact");
+    expect(nextState.session.id).toBe("session-artifact");
+  });
+
+  it("serializes and parses local workspace state", () => {
+    const state = createLocalWorkspaceState("Local persistence", "Browser session", {
+      projectId: "project-local",
+      sessionId: "session-local",
+      selectedSurface: "documents",
+    });
+
+    expect(parseWorkspaceState(serializeWorkspaceState(state))).toEqual(state);
+  });
+
+  it("renders the MVP-5 workspace shell as the first product screen", () => {
+    const state = createLocalWorkspaceState("Structured thinking", "Opening pass", {
+      projectId: "project-702",
+      sessionId: "session-702",
+      selectedSurface: "dialogue",
+    });
+    const page = renderWorkspaceShell(state);
+
+    expect(page).toContain('data-shell="workspace-shell"');
+    expect(page).toContain('data-project-id="project-702"');
+    expect(page).toContain('data-session-id="session-702"');
+    expect(page).toContain('data-local-only="true"');
+    expect(page).toContain("Local only");
+    expect(page).toContain("New local project");
+    expect(page).toContain("Open local project");
+    expect(page).toContain("Reset local project");
+    expect(page).toContain('aria-label="workspace-surfaces"');
+    expect(page).toContain("Dialogue");
+    expect(page).toContain("Documents");
+    expect(page).toContain("Retrieval");
+    expect(page).toContain("Claim Review");
+    expect(page).toContain("Map");
+    expect(page).toContain("Artifacts");
+    expect(page).toContain('data-active-surface="dialogue"');
+    expect(page).toContain("scope, status, risk and boundary");
+    expect(page).toContain("Technical details");
+    expect(page).toContain("mvp-5");
   });
 
   it("creates a minimal dialogue message surface", () => {
