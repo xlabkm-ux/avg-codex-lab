@@ -1,4 +1,6 @@
+import { appendFileSync, existsSync, mkdirSync } from "node:fs";
 import { createServer, type IncomingMessage, type Server } from "node:http";
+import { isAbsolute, relative, resolve, sep } from "node:path";
 import { URL } from "node:url";
 import {
   cloneGraphSnapshot,
@@ -71,6 +73,12 @@ const sessions = new Map<string, SessionRecord>();
 const messages = new Map<string, MessageRecord>();
 const documentRepository = createDocumentRepository();
 
+const defaultApiRuntimeConfig: ApiRuntimeConfig = {
+  requestTimeoutMs: 15_000,
+  requestBodyLimitBytes: 1_000_000,
+  logDirectory: ".avg-logs"
+};
+
 export type RegisterProjectDocumentBody = Omit<RegisterDocumentInput, "project_id">;
 export type SearchProjectDocumentsOptions = SearchDocumentsOptions;
 
@@ -91,6 +99,29 @@ export interface ApiRouteResponse {
   body: string;
 }
 
+export interface ApiRuntimeConfig {
+  requestTimeoutMs: number;
+  requestBodyLimitBytes: number;
+  logDirectory: string;
+}
+
+export interface CreateApiServerOptions {
+  config?: Partial<ApiRuntimeConfig>;
+}
+
+export interface ApiErrorEnvelope {
+  status: "error";
+  code: string;
+  message: string;
+  details: Record<string, unknown>;
+}
+
+export interface SafeLabPathResult {
+  rootDir: string;
+  requestedPath: string;
+  absolutePath: string;
+}
+
 export interface RenderGroundedProjectDialoguePageRequest extends RenderGroundedProjectDialoguePageInput {
   query: string;
   limit?: number;
@@ -99,6 +130,111 @@ export interface RenderGroundedProjectDialoguePageRequest extends RenderGrounded
 export interface SearchProjectDocumentsRequest {
   query: string;
   limit?: number;
+}
+
+function parsePositiveIntegerConfig(
+  value: string | undefined,
+  fallback: number,
+  field: string
+): number {
+  if (value === undefined || value.trim().length === 0) {
+    return fallback;
+  }
+
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed <= 0) {
+    throw new Error(`${field} must be a positive integer.`);
+  }
+
+  return parsed;
+}
+
+export function createApiRuntimeConfig(
+  overrides: Partial<ApiRuntimeConfig> = {},
+  env: Record<string, string | undefined> = process.env
+): ApiRuntimeConfig {
+  const config = {
+    requestTimeoutMs:
+      overrides.requestTimeoutMs ??
+      parsePositiveIntegerConfig(
+        env.AVG_API_REQUEST_TIMEOUT_MS,
+        defaultApiRuntimeConfig.requestTimeoutMs,
+        "AVG_API_REQUEST_TIMEOUT_MS"
+      ),
+    requestBodyLimitBytes:
+      overrides.requestBodyLimitBytes ??
+      parsePositiveIntegerConfig(
+        env.AVG_API_REQUEST_BODY_LIMIT_BYTES,
+        defaultApiRuntimeConfig.requestBodyLimitBytes,
+        "AVG_API_REQUEST_BODY_LIMIT_BYTES"
+      ),
+    logDirectory:
+      overrides.logDirectory ??
+      env.AVG_API_LOG_DIRECTORY ??
+      defaultApiRuntimeConfig.logDirectory
+  };
+
+  if (!Number.isInteger(config.requestTimeoutMs) || config.requestTimeoutMs <= 0) {
+    throw new Error("requestTimeoutMs must be a positive integer.");
+  }
+
+  if (!Number.isInteger(config.requestBodyLimitBytes) || config.requestBodyLimitBytes <= 0) {
+    throw new Error("requestBodyLimitBytes must be a positive integer.");
+  }
+
+  resolveLabRelativePath(process.cwd(), config.logDirectory);
+
+  return config;
+}
+
+export function resolveLabRelativePath(rootDir: string, requestedPath: string): SafeLabPathResult {
+  if (requestedPath.trim().length === 0) {
+    throw new Error("requestedPath is required.");
+  }
+
+  if (isAbsolute(requestedPath)) {
+    throw new Error("Absolute paths are not allowed inside the AVG lab boundary.");
+  }
+
+  const absoluteRoot = resolve(rootDir);
+  const absolutePath = resolve(absoluteRoot, requestedPath);
+  const relativePath = relative(absoluteRoot, absolutePath);
+
+  if (
+    relativePath === "" ||
+    relativePath.startsWith("..") ||
+    relativePath.includes(`..${sep}`) ||
+    isAbsolute(relativePath)
+  ) {
+    throw new Error("Path traversal outside the AVG lab boundary is not allowed.");
+  }
+
+  return {
+    rootDir: absoluteRoot,
+    requestedPath,
+    absolutePath
+  };
+}
+
+function isSafeRouteId(value: string): boolean {
+  if (value.trim().length === 0) {
+    return false;
+  }
+
+  let decoded: string;
+  try {
+    decoded = decodeURIComponent(value);
+  } catch {
+    return false;
+  }
+
+  return (
+    decoded === value &&
+    /^[A-Za-z0-9_-]+$/.test(decoded) &&
+    !decoded.includes("..") &&
+    !decoded.includes("/") &&
+    !decoded.includes("\\")
+  );
 }
 
 function isClaimProjection(value: MapSnapshotLike): value is ClaimProjection {
@@ -262,6 +398,20 @@ function jsonResponse(statusCode: number, body: unknown): ApiRouteResponse {
   };
 }
 
+function errorResponse(
+  statusCode: number,
+  code: string,
+  message: string,
+  details: Record<string, unknown> = {}
+): ApiRouteResponse {
+  return jsonResponse(statusCode, {
+    status: "error",
+    code,
+    message,
+    details
+  } satisfies ApiErrorEnvelope);
+}
+
 function htmlResponse(body: string): ApiRouteResponse {
   return {
     statusCode: 200,
@@ -280,6 +430,81 @@ async function readRequestBody(request: IncomingMessage): Promise<string> {
   }
 
   return Buffer.concat(chunks).toString("utf8");
+}
+
+async function readRequestBodyWithLimits(
+  request: IncomingMessage,
+  config: ApiRuntimeConfig
+): Promise<string> {
+  const chunks: Buffer[] = [];
+  let totalBytes = 0;
+  let timeout: NodeJS.Timeout | undefined;
+
+  try {
+    return await new Promise<string>((resolvePromise, rejectPromise) => {
+      timeout = setTimeout(() => {
+        request.destroy(new Error("Request body timeout."));
+        rejectPromise(new Error("Request body timeout."));
+      }, config.requestTimeoutMs);
+
+      request.on("data", (chunk: Buffer | string) => {
+        const buffer = typeof chunk === "string" ? Buffer.from(chunk) : chunk;
+        totalBytes += buffer.byteLength;
+
+        if (totalBytes > config.requestBodyLimitBytes) {
+          request.pause();
+          rejectPromise(new Error("Request body too large."));
+          return;
+        }
+
+        chunks.push(buffer);
+      });
+
+      request.on("end", () => {
+        resolvePromise(Buffer.concat(chunks).toString("utf8"));
+      });
+
+      request.on("error", rejectPromise);
+    });
+  } finally {
+    if (timeout !== undefined) {
+      clearTimeout(timeout);
+    }
+  }
+}
+
+export function writeApiErrorLog(error: unknown, config: ApiRuntimeConfig): void {
+  const logRoot = resolveLabRelativePath(process.cwd(), config.logDirectory);
+  if (!existsSync(logRoot.absolutePath)) {
+    mkdirSync(logRoot.absolutePath, { recursive: true });
+  }
+
+  const logFile = resolveLabRelativePath(config.logDirectory, "api-errors.ndjson");
+  const entry = {
+    timestamp: new Date().toISOString(),
+    code: error instanceof Error ? error.name : "UnknownError",
+    message: error instanceof Error ? error.message : "Unknown API error",
+    stack: error instanceof Error ? error.stack : undefined
+  };
+
+  appendFileSync(logFile.absolutePath, `${JSON.stringify(entry)}\n`, "utf8");
+}
+
+function safeWriteApiErrorLog(error: unknown, config = createApiRuntimeConfig()): void {
+  try {
+    writeApiErrorLog(error, config);
+  } catch {
+    // Logging must never turn a handled API failure into another runtime failure.
+  }
+}
+
+function internalErrorResponse(error: unknown): ApiRouteResponse {
+  safeWriteApiErrorLog(error);
+  return errorResponse(
+    500,
+    "INTERNAL_ERROR",
+    "AVG hit an internal API failure. Try again later."
+  );
 }
 
 function isRenderGroundedProjectDialoguePageRequest(
@@ -347,48 +572,62 @@ export function handleGroundedProjectDialoguePageRoute(
   const documentRouteMatch = /^\/projects\/([^/]+)\/documents$/.exec(pathname);
   if (method === "POST" && documentRouteMatch !== null) {
     const projectId = documentRouteMatch[1]!;
+    if (!isSafeRouteId(projectId)) {
+      return errorResponse(
+        400,
+        "INVALID_ROUTE_ID",
+        "Project route ids may contain only letters, numbers, underscores and hyphens."
+      );
+    }
 
     try {
       const parsedBody = JSON.parse(bodyText) as unknown;
       if (!isRegisterProjectDocumentBody(parsedBody)) {
-        return jsonResponse(400, {
-          code: "DOCUMENT_TEXT_REQUIRED",
-          message: "Document registration requires title, source_kind and text.",
-          details: {}
-        });
+        return errorResponse(
+          400,
+          "DOCUMENT_TEXT_REQUIRED",
+          "Document registration requires title, source_kind and text."
+        );
       }
 
       const result = registerProjectDocument(projectId, parsedBody);
       return jsonResponse(201, result);
     } catch (error) {
       if (error instanceof SyntaxError) {
-        return jsonResponse(400, {
-          code: "INVALID_JSON",
-          message: "The document registration request body must be valid JSON.",
-          details: {}
-        });
+        return errorResponse(
+          400,
+          "INVALID_JSON",
+          "The document registration request body must be valid JSON."
+        );
       }
 
-      return jsonResponse(400, {
-        code: "DOCUMENT_TEXT_REQUIRED",
-        message: error instanceof Error ? error.message : "Document registration failed.",
-        details: {}
-      });
+      return errorResponse(
+        400,
+        "DOCUMENT_TEXT_REQUIRED",
+        error instanceof Error ? error.message : "Document registration failed."
+      );
     }
   }
 
   const retrievalRouteMatch = /^\/projects\/([^/]+)\/retrieval\/search$/.exec(pathname);
   if (method === "POST" && retrievalRouteMatch !== null) {
     const projectId = retrievalRouteMatch[1]!;
+    if (!isSafeRouteId(projectId)) {
+      return errorResponse(
+        400,
+        "INVALID_ROUTE_ID",
+        "Project route ids may contain only letters, numbers, underscores and hyphens."
+      );
+    }
 
     try {
       const parsedBody = JSON.parse(bodyText) as unknown;
       if (!isSearchProjectDocumentsRequest(parsedBody)) {
-        return jsonResponse(400, {
-          code: "RETRIEVAL_QUERY_REQUIRED",
-          message: "Retrieval search requires a query string.",
-          details: {}
-        });
+        return errorResponse(
+          400,
+          "RETRIEVAL_QUERY_REQUIRED",
+          "Retrieval search requires a query string."
+        );
       }
 
       const result = searchProjectDocuments(projectId, parsedBody.query, {
@@ -396,54 +635,63 @@ export function handleGroundedProjectDialoguePageRoute(
       });
 
       if (result.hits.length === 0) {
-        return jsonResponse(404, {
-          code: "RETRIEVAL_NO_EVIDENCE",
-          message: "No registered snippets matched the retrieval query.",
-          details: result
-        });
+        return errorResponse(
+          404,
+          "RETRIEVAL_NO_EVIDENCE",
+          "No registered snippets matched the retrieval query.",
+          { ...result }
+        );
       }
 
       return jsonResponse(200, result);
     } catch (error) {
       if (error instanceof SyntaxError) {
-        return jsonResponse(400, {
-          code: "INVALID_JSON",
-          message: "The retrieval search request body must be valid JSON.",
-          details: {}
-        });
+        return errorResponse(
+          400,
+          "INVALID_JSON",
+          "The retrieval search request body must be valid JSON."
+        );
       }
 
-      return jsonResponse(400, {
-        code: "RETRIEVAL_QUERY_REQUIRED",
-        message: error instanceof Error ? error.message : "Retrieval search failed.",
-        details: {}
-      });
+      return errorResponse(
+        400,
+        "RETRIEVAL_QUERY_REQUIRED",
+        error instanceof Error ? error.message : "Retrieval search failed."
+      );
     }
   }
 
   const pageRouteMatch = /^\/projects\/([^/]+)\/dialogue\/page$/.exec(pathname);
   if (method === "POST" && pageRouteMatch !== null) {
     const projectId = pageRouteMatch[1]!;
+    if (!isSafeRouteId(projectId)) {
+      return errorResponse(
+        400,
+        "INVALID_ROUTE_ID",
+        "Project route ids may contain only letters, numbers, underscores and hyphens."
+      );
+    }
 
     try {
       const parsedBody = JSON.parse(bodyText) as unknown;
       if (!isRenderGroundedProjectDialoguePageRequest(parsedBody)) {
-        return jsonResponse(400, {
-          code: "INVALID_REQUEST",
-          message: "The grounded dialogue page request is missing required fields.",
-          details: {}
-        });
+        return errorResponse(
+          400,
+          "INVALID_REQUEST",
+          "The grounded dialogue page request is missing required fields."
+        );
       }
 
       if (parsedBody.response.project_id !== projectId) {
-        return jsonResponse(400, {
-          code: "PROJECT_ID_MISMATCH",
-          message: "The grounded dialogue page response must match the route project id.",
-          details: {
+        return errorResponse(
+          400,
+          "PROJECT_ID_MISMATCH",
+          "The grounded dialogue page response must match the route project id.",
+          {
             projectId,
             responseProjectId: parsedBody.response.project_id
           }
-        });
+        );
       }
 
       const body = renderGroundedProjectDialoguePage(projectId, {
@@ -455,34 +703,65 @@ export function handleGroundedProjectDialoguePageRoute(
       });
 
       return htmlResponse(body);
-    } catch {
-      return jsonResponse(400, {
-        code: "INVALID_JSON",
-        message: "The grounded dialogue page request body must be valid JSON.",
-        details: {}
-      });
+    } catch (error) {
+      if (error instanceof SyntaxError) {
+        return errorResponse(
+          400,
+          "INVALID_JSON",
+          "The grounded dialogue page request body must be valid JSON."
+        );
+      }
+
+      return internalErrorResponse(error);
     }
   }
 
-  return jsonResponse(404, {
-    code: "NOT_FOUND",
-    message: "The requested route is not available.",
-    details: {
+  return errorResponse(
+    404,
+    "NOT_FOUND",
+    "The requested route is not available.",
+    {
       method,
       pathname
     }
-  });
+  );
 }
 
-export function createApiServer(): Server {
+export function createApiServer(options: CreateApiServerOptions = {}): Server {
+  const config = createApiRuntimeConfig(options.config);
+
   return createServer(async (request, response) => {
-    const requestUrl = new URL(request.url ?? "/", "http://localhost");
-    const bodyText = request.method === "GET" || request.method === "HEAD" ? "" : await readRequestBody(request);
-    const routeResponse = handleGroundedProjectDialoguePageRoute(
-      request.method ?? "GET",
-      requestUrl.pathname,
-      bodyText
-    );
+    let routeResponse: ApiRouteResponse;
+
+    try {
+      request.setTimeout(config.requestTimeoutMs);
+      const requestUrl = new URL(request.url ?? "/", "http://localhost");
+      const bodyText =
+        request.method === "GET" || request.method === "HEAD"
+          ? ""
+          : await readRequestBodyWithLimits(request, config);
+
+      routeResponse = handleGroundedProjectDialoguePageRoute(
+        request.method ?? "GET",
+        requestUrl.pathname,
+        bodyText
+      );
+    } catch (error) {
+      safeWriteApiErrorLog(error, config);
+      routeResponse = errorResponse(
+        error instanceof Error && error.message.includes("too large") ? 413 : 500,
+        error instanceof Error && error.message.includes("too large")
+          ? "REQUEST_BODY_TOO_LARGE"
+          : error instanceof Error && error.message.includes("timeout")
+            ? "REQUEST_TIMEOUT"
+            : "INTERNAL_ERROR",
+        error instanceof Error && error.message.includes("too large")
+          ? "The request body exceeds the configured API limit."
+          : error instanceof Error && error.message.includes("timeout")
+            ? "The request timed out before AVG could process it."
+            : "AVG hit an internal API failure. Try again later."
+      );
+    }
 
     response.writeHead(routeResponse.statusCode, routeResponse.headers);
 
