@@ -1,6 +1,6 @@
 # packages/avg-validation
 
-Claim extractor, claim validator, risk classifier, metaphor detector.
+Claim extraction and schema validation for AVG structured responses.
 
 ## Ownership
 
@@ -13,8 +13,18 @@ See `.codex/agent-registry.md`.
 - Contract tests for public schemas.
 - README updated when public behavior changes.
 
-## First Implementation Tasks
+## Current Public API
 
-1. Create `src/index.ts`.
-2. Add package-level tests.
-3. Export typed public API only.
+- `validateClaimContract` validates claim-level discipline and boundary notes.
+- `extractClaimsFromAvgResponse` extracts schema-bound claim candidates from a validated AVG structured response.
+- `classifyClaimDiscipline` classifies claim status and language mode from claim text.
+- `classifyClaimRisk` detects strong-word, dogma and map/territory risks and returns repair suggestions.
+- `isAvgClaim` and `isAvgStructuredResponse` expose type guards for downstream packages.
+
+## Contract Notes
+
+- claim extraction is deterministic and response-shaped;
+- claim candidates preserve `claim_status`, `language_mode`, `scope`, `risks` and `source_refs`;
+- classifier output preserves the gap between an input claim and the preferred map discipline;
+- repair suggestions preserve uncertainty and avoid collapsing metaphor into fact;
+- schema violations stop extraction before downstream validation begins.

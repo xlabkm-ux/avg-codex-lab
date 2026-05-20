@@ -15,6 +15,16 @@ See `.codex/agent-registry.md`.
 
 ## First Implementation Tasks
 
-1. Create `src/index.ts`.
-2. Add package-level tests.
-3. Export typed public API only.
+## Current Public API
+
+- `fixtureRequiresBoundary` checks whether a static eval fixture declares a boundary requirement.
+- `scoreClaimSafetyAnswer` scores an answer for strong-word, metaphor and boundary discipline.
+- `scoreNoFairyTaleAnswer` scores an answer against the no-fairy-tale gate and returns failure and reward signals.
+
+## Contract Notes
+
+- claim-safety scoring is deterministic and heuristic;
+- no-fairy-tale scoring is deterministic and heuristic;
+- strong words, certainty, metaphor and actionability remain visible in the report;
+- the package exports typed public API only.
+- AI eval commands run as deterministic Node gates in `scripts/evals`.

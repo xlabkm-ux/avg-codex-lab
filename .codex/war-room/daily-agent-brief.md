@@ -14,11 +14,15 @@ Approved plan:
 
 ## Current Sprint
 
-Active sprint: `Sprint 3`
+Active sprint: `Sprint 4`
 
 Current gate:
 
-- `AVG-301` - claim validation contract freeze
+- `AVG-402` - claim safety and metaphor boundary evals
+
+Approved gate:
+
+- `AVG-305` - unit and contract tests
 
 Execution rule:
 

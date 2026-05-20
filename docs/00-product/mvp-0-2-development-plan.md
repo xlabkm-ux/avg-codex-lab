@@ -102,10 +102,11 @@ Definition of Done:
 
 ### MVP-2: Claim Validation
 
-Goal: AVG can extract claims, classify risk and repair weak statements.
+Goal: AVG can extract claims, classify risk and repair weak statements against a frozen claim contract.
 
 Deliverables:
 
+- claim validation contract freeze;
 - claim extraction pipeline;
 - claim status classifier;
 - metaphor boundary classifier;
@@ -118,6 +119,7 @@ Deliverables:
 
 Definition of Done:
 
+- claim validation contract is frozen and documented;
 - extracted claims conform to `schemas/json-schema/claim.schema.json`;
 - validation risks are visible in API/UI output;
 - repair suggestions preserve uncertainty instead of flattening creativity;
@@ -133,7 +135,7 @@ The pragmatic default is a one-week sprint cadence while the project is small. I
 | Sprint 0 | MVP-0 | Monorepo, CI, package configs, schema/test commands | root checks pass locally and in CI |
 | Sprint 1 | MVP-1 | API, OpenAI adapter, structured response contract | API returns structured AVG response |
 | Sprint 2 | MVP-1 | Minimal web dialogue and smoke tests | user can complete first dialogue path |
-| Sprint 3 | MVP-2 | Claim extraction, status, risks, unit/contract tests | claims validate against schema |
+| Sprint 3 | MVP-2 | Claim extraction, status, risks, unit/contract tests | claim contract is frozen and claims validate against schema |
 | Sprint 4 | MVP-2 | No Fairy Tale Gate, evals, repair suggestions, validator UI/API | critical eval thresholds pass |
 
 ## Agent Work Model

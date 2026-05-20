@@ -20,5 +20,6 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm test:ai
+      - run: pnpm test:claim-safety
       - run: pnpm test:no-fairy-tale
       - run: pnpm test:prompt-regression

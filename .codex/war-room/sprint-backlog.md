@@ -91,6 +91,8 @@ Exit criteria:
 
 Goal: extract and classify claims from AVG responses.
 
+Claim validation contract baseline: `docs/02-ai-system/claim-validation-contract.md`.
+
 | Task | Owner | Parallel | Risk | Output |
 |---|---|---:|---|---|
 | AVG-301 | Architect | no | red | claim validation contract freeze |
@@ -111,6 +113,7 @@ Model budget:
 
 Exit criteria:
 
+- claim validation contract is frozen;
 - claims validate against JSON Schema;
 - risk and repair fields are produced;
 - contract tests pass.

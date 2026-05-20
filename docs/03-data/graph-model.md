@@ -37,8 +37,8 @@ Every important node must have:
   "definition": "...",
   "coordinates": {
     "access_mode": "knowable | indirectly_accessible | unknowable | mixed",
-    "language_mode": "direct_description | operational_description | conditional_description | metaphor | symbolic_pointer",
-    "claim_status": "definition | working_distinction | hypothesis | metaphor_only | prohibited_positive_claim"
+    "language_mode": "direct_description | operational_description | conditional_description | metaphor | symbolic_pointer | silence_required",
+    "claim_status": "definition | working_distinction | operational_marker | indirect_sign | hypothesis | metaphor_only | prohibited_positive_claim | boundary_statement"
   },
   "map_safety": {
     "known_risks": []
@@ -49,3 +49,5 @@ Every important node must have:
 ## Graph Rule
 
 A node without coordinates is not allowed in production graph storage.
+
+Claim and language coordinates must use the frozen MVP-2 vocabularies.

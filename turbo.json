@@ -13,6 +13,7 @@
     "test:a11y": {},
     "test:security": {},
     "test:ai": {},
+    "test:claim-safety": {},
     "test:no-fairy-tale": {},
     "test:prompt-regression": {},
     "validate:schemas": {},

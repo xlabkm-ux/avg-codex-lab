@@ -23,8 +23,8 @@ Status legend:
 | Sprint 0: Repository Operating System | 5 / 5 done | AVG-001, AVG-002, AVG-003, AVG-004 and AVG-005 are done |
 | Sprint 1: Backend Dialogue Slice | 5 / 5 done | all Sprint 1 tasks are done and validated |
 | Sprint 2: Web Dialogue Slice | 5 / 5 done | all Sprint 2 tasks are done and validated |
-| Sprint 3: Validation Core | 0 / 5 deferred | ready for AVG-301 contract freeze |
-| Sprint 4: Validation UX/API | 0 / 5 active | waits for Sprint 3 validation core |
+| Sprint 3: Validation Core | 5 / 5 done | AVG-301, AVG-302, AVG-303, AVG-304 and AVG-305 are done |
+| Sprint 4: Validation UX/API | 1 / 5 active | AVG-402 claim safety eval targets are in progress |
 
 ## Sprint 0: MVP-0 Repository Operating System
 
@@ -69,18 +69,18 @@ Current exit status: `done`.
 
 | Task | Owner | Status | Progress | Evidence / Next Step |
 |---|---|---|---:|---|
-| AVG-301 | Architect | deferred | 0% | waits for MVP-1 structured response contract |
-| AVG-302 | Validation | deferred | 0% | waits for claim validation contract freeze |
-| AVG-303 | Validation | deferred | 0% | waits for AVG-301 and AVG-302 |
-| AVG-304 | Validation | deferred | 0% | waits for risk classifier boundaries |
-| AVG-305 | QA | deferred | 0% | waits for validation implementation behavior |
+| AVG-301 | Architect | done | 100% | claim validation contract is frozen in `docs/02-ai-system/claim-validation-contract.md` and Sprint 3 can advance |
+| AVG-302 | Validation | done | 100% | claim extraction and schema validation are implemented in `packages/avg-validation` and verified with unit, typecheck and build checks |
+| AVG-303 | Validation | done | 100% | claim status and language mode classifier is implemented in `packages/avg-validation` and verified with unit, typecheck and build checks |
+| AVG-304 | Validation | done | 100% | risk classifier and repair suggestions are implemented in `packages/avg-validation` and verified with unit, typecheck and build checks |
+| AVG-305 | QA | done | 100% | unit and contract coverage for the validation package is implemented and verified with package and root checks |
 
 ## Sprint 4: MVP-2 Eval and Validation UX/API
 
 | Task | Owner | Status | Progress | Evidence / Next Step |
 |---|---|---|---:|---|
-| AVG-401 | Validation | deferred | 0% | waits for validation core |
-| AVG-402 | QA | deferred | 0% | waits for claim safety eval targets |
+| AVG-401 | Validation | ready | 0% | can start now that the validation core is complete |
+| AVG-402 | QA | in progress | 40% | claim-safety helper and fixture-backed tests are in place; finishing regression wiring |
 | AVG-403 | Backend | deferred | 0% | waits for validation API contract |
 | AVG-404 | Frontend | deferred | 0% | waits for validation API output |
 | AVG-405 | Docs | deferred | 0% | waits for behavior ledger and release notes |
