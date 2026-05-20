@@ -1,6 +1,14 @@
 # Active Epics
 
+Approved execution plan: `docs/00-product/mvp-0-2-development-plan.md`.
+
+Sprint backlog: `.codex/war-room/sprint-backlog.md`.
+
+Agent execution model: `.codex/agent-execution-matrix.md`.
+
 ## Epic AVG-MVP-0: Repository Operating System
+
+Status: approved for execution.
 
 Goal: make the project operable by Codex agents.
 
@@ -12,8 +20,12 @@ Deliverables:
 - package skeleton;
 - initial schemas;
 - CI skeleton.
+- package configs and working root checks.
+- first task cards for MVP-1 and MVP-2.
 
 ## Epic AVG-MVP-1: Dialogue Core
+
+Status: approved after MVP-0 exit criteria.
 
 Goal: create minimal text dialogue with mode routing and structured outputs.
 
@@ -24,8 +36,11 @@ Deliverables:
 - response composer;
 - project session storage;
 - smoke tests.
+- minimal web dialogue surface.
 
 ## Epic AVG-MVP-2: Claim Validation
+
+Status: approved after MVP-1 structured response contract.
 
 Goal: validate claims, risks, metaphor boundaries and strong words.
 
@@ -36,8 +51,12 @@ Deliverables:
 - validator rules;
 - AI eval fixtures;
 - validation panel API.
+- No Fairy Tale Gate.
+- repair suggestions.
 
 ## Epic AVG-MVP-3: Concept Map
+
+Status: deferred until MVP-2 is complete.
 
 Goal: store and visualize terms, claims and relations.
 

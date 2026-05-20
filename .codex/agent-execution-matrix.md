@@ -1,0 +1,109 @@
+# Agent Execution Matrix
+
+This matrix defines how agents execute the MVP-0 to MVP-2 plan.
+
+## Operating Rules
+
+- One agent, one task, one branch, one PR.
+- Contract work is sequential.
+- Implementation work is parallel only after contracts are stable.
+- Red and black tasks require explicit owner approval before parallel work starts.
+- Every task must include context budget and handoff status.
+
+## Sequential Lanes
+
+### Contract Lane
+
+Owner: Architect Agent.
+
+Includes:
+
+- package boundaries;
+- shared types;
+- JSON Schema;
+- OpenAPI;
+- ADRs;
+- dependency changes.
+
+Rule: no implementation agent starts against a changing contract unless the task is marked as exploratory.
+
+### AI Behavior Lane
+
+Owner: Validation Agent with QA review.
+
+Includes:
+
+- prompt changes;
+- structured output behavior;
+- claim classification behavior;
+- metaphor boundary behavior;
+- No Fairy Tale Gate behavior.
+
+Rule: prompt changes require evals and behavior ledger updates.
+
+### Release Lane
+
+Owner: QA Agent with DevOps support.
+
+Includes:
+
+- CI quality gates;
+- release checklist;
+- test reports;
+- eval reports;
+- rollback notes.
+
+Rule: release gates can block any PR.
+
+## Parallel Lanes
+
+| Lane | Agent | Parallel When | Blocked By |
+|---|---|---|---|
+| API implementation | Backend | OpenAPI and core types are stable | contract changes |
+| UI implementation | Frontend | response/API contract is stable or mocked | API shape changes |
+| Validation rules | Validation | claim schema is frozen | schema changes |
+| Test infrastructure | QA | target behavior is defined | missing contract |
+| Docs/runbooks | Documentation | decision is accepted | unresolved decision |
+| Local/CI tooling | DevOps | scripts are defined | package layout changes |
+
+## Handoff Protocol
+
+Before another agent continues a task, the current agent must provide:
+
+- task id;
+- branch name;
+- files changed;
+- contracts touched;
+- tests run;
+- context status;
+- open risks;
+- next recommended step.
+
+## Context Status
+
+| Status | Meaning | Required Action |
+|---|---|---|
+| green | bounded task, limited files | continue |
+| yellow | broad context or multiple contracts | write handoff summary before edits continue |
+| red | context overloaded or task too broad | stop and split task |
+
+## MVP-0 to MVP-2 Agent Allocation
+
+| Milestone | Primary Agents | Review Agents |
+|---|---|---|
+| MVP-0 | Architect, DevOps, QA | Backend, Docs |
+| MVP-1 | Backend, Frontend, QA | Architect, Validation |
+| MVP-2 | Validation, QA, Backend | Architect, Frontend, Security |
+
+## Practical Resource Rule
+
+If only one active human/Codex lane is available, run tasks in this order:
+
+1. Architect contract task.
+2. QA guardrail task.
+3. Backend implementation.
+4. Frontend implementation.
+5. Validation behavior.
+6. Documentation update.
+
+This keeps the project moving without creating parallel conflict debt.
