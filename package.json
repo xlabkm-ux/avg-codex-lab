@@ -25,13 +25,14 @@
     "clean": "turbo clean && rm -rf node_modules"
   },
   "devDependencies": {
-    "turbo": "latest",
-    "typescript": "latest",
-    "prettier": "latest",
-    "eslint": "latest",
-    "vitest": "latest",
-    "playwright": "latest",
-    "ajv": "latest",
-    "zod": "latest"
+    "@types/node": "22.15.21",
+    "ajv": "8.17.1",
+    "eslint": "9.27.0",
+    "playwright": "1.52.0",
+    "prettier": "3.5.3",
+    "turbo": "2.5.3",
+    "typescript": "5.8.3",
+    "vitest": "3.1.4",
+    "zod": "3.25.28"
   }
 }

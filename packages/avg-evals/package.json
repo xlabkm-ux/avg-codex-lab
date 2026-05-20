@@ -1,0 +1,17 @@
+{
+  "name": "@avg/evals",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "lint": "tsc --noEmit -p tsconfig.json",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run",
+    "test:ai": "vitest run",
+    "test:no-fairy-tale": "vitest run",
+    "test:prompt-regression": "vitest run",
+    "eval": "vitest run",
+    "clean": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\""
+  }
+}
