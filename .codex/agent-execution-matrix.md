@@ -9,6 +9,7 @@ This matrix defines how agents execute the MVP-0 to MVP-2 plan.
 - Implementation work is parallel only after contracts are stable.
 - Red and black tasks require explicit owner approval before parallel work starts.
 - Every task must include context budget and handoff status.
+- Every task must follow `.codex/model-policy.md`.
 
 ## Sequential Lanes
 
@@ -76,6 +77,8 @@ Before another agent continues a task, the current agent must provide:
 - contracts touched;
 - tests run;
 - context status;
+- model tier and model used;
+- model escalation or substitution, if any;
 - open risks;
 - next recommended step.
 
@@ -107,3 +110,20 @@ If only one active human/Codex lane is available, run tasks in this order:
 6. Documentation update.
 
 This keeps the project moving without creating parallel conflict debt.
+
+## Model Resource Rule
+
+Use the lowest approved model tier that can safely complete the task.
+
+Default mapping:
+
+- Documentation Agent: `minimal`;
+- DevOps Agent: `minimal` for routine config, `standard` for CI failures;
+- Backend Agent: `standard`;
+- Frontend Agent: `standard`;
+- QA Agent: `standard`, `review` for eval interpretation;
+- Architect Agent: `strong` for contracts, `standard` for routine docs;
+- Validation Agent: `strong` for behavior and eval logic, `standard` for fixtures;
+- Security Agent: `strong`.
+
+Agents cannot escalate themselves. They must request approval before using a stronger model than the task budget.

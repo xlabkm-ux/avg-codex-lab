@@ -140,6 +140,8 @@ The pragmatic default is a one-week sprint cadence while the project is small. I
 
 Contract changes are sequential. Implementation tasks inside stable contracts may run in parallel.
 
+Model usage is controlled by `.codex/model-policy.md`. Sprint approval includes a model budget for each task. Agents must not silently switch to a stronger model; escalation requires human approval.
+
 Sequential path:
 
 ```text
@@ -200,6 +202,17 @@ Context status:
 - `red`: scope is too broad, task must be split or escalated.
 
 Because Codex context percentage is not a stable project API, the project tracks context operationally through file count, touched contexts, task risk and required handoff summaries.
+
+## Model Budget Management
+
+The project uses model tiers to control cost:
+
+- `minimal` for docs, task cards, simple configs and simple fixtures;
+- `standard` for normal single-package implementation and tests;
+- `strong` for architecture, shared schemas, OpenAPI, validation logic, prompt behavior and security;
+- `review` for final PR review and eval interpretation.
+
+Each sprint backlog declares the default model per task. Escalation to a stronger model requires a human-approved escalation note.
 
 ## Quality Gates
 

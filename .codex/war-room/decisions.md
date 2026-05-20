@@ -13,3 +13,11 @@ Decision: Start development with MVP-0 Repository Operating System, then MVP-1 C
 Reason: AVG must prove structured dialogue and claim discipline before investing in visual maps, retrieval, voice or production deployment.
 
 Consequence: MVP-3 Concept Map, retrieval and voice are deferred. Contract work is sequential; implementation work may run in parallel only after contracts are stable.
+
+## 2026-05-20 — Model budget policy approved
+
+Decision: Use `.codex/model-policy.md` to assign the lowest safe model tier per sprint task. Agents must start with the approved model and must not silently escalate to a stronger model.
+
+Reason: Project resources are limited, while architecture, shared contracts and AVG validation behavior still require stronger review when risk is high.
+
+Consequence: Sprint backlog includes a model budget table. Escalation to a stronger model requires a human-approved escalation note.

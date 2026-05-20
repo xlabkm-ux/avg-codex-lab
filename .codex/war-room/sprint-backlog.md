@@ -14,6 +14,16 @@ Goal: make the repository executable, testable and safe for agent work.
 | AVG-004 | QA | yes | yellow | baseline testkit and schema validation command |
 | AVG-005 | Docs | yes | green | onboarding and first-task docs updated |
 
+Model budget:
+
+| Task | Tier | Model | Approval |
+|---|---|---|---|
+| AVG-001 | strong | `gpt-5.5` | sprint approval required |
+| AVG-002 | minimal | `gpt-5.4-mini` | automatic after sprint approval |
+| AVG-003 | standard | `gpt-5.4` | automatic after sprint approval |
+| AVG-004 | standard | `gpt-5.4` | automatic after sprint approval |
+| AVG-005 | minimal | `gpt-5.4-mini` | automatic after sprint approval |
+
 Exit criteria:
 
 - root checks pass;
@@ -33,6 +43,16 @@ Goal: expose the minimal structured dialogue path through API.
 | AVG-104 | Backend | yes | yellow | mode router and response composer |
 | AVG-105 | QA | yes | yellow | API contract and smoke tests |
 
+Model budget:
+
+| Task | Tier | Model | Approval |
+|---|---|---|---|
+| AVG-101 | strong | `gpt-5.5` | sprint approval required |
+| AVG-102 | standard | `gpt-5.4` | automatic after sprint approval |
+| AVG-103 | standard | `gpt-5.4` | automatic after sprint approval |
+| AVG-104 | standard | `gpt-5.4` | automatic after sprint approval |
+| AVG-105 | standard | `gpt-5.4` | automatic after sprint approval |
+
 Exit criteria:
 
 - API returns structured AVG response;
@@ -50,6 +70,16 @@ Goal: make the first user-facing dialogue path usable.
 | AVG-203 | Frontend | yes | yellow | structured response details panel |
 | AVG-204 | QA | yes | yellow | E2E smoke test for first dialogue |
 | AVG-205 | Docs | yes | green | MVP-1 usage notes |
+
+Model budget:
+
+| Task | Tier | Model | Approval |
+|---|---|---|---|
+| AVG-201 | standard | `gpt-5.4` | automatic after sprint approval |
+| AVG-202 | standard | `gpt-5.4` | automatic after sprint approval |
+| AVG-203 | standard | `gpt-5.4` | automatic after sprint approval |
+| AVG-204 | standard | `gpt-5.4` | automatic after sprint approval |
+| AVG-205 | minimal | `gpt-5.4-mini` | automatic after sprint approval |
 
 Exit criteria:
 
@@ -69,6 +99,16 @@ Goal: extract and classify claims from AVG responses.
 | AVG-304 | Validation | yes | yellow | risk classifier and repair suggestions |
 | AVG-305 | QA | yes | yellow | unit and contract tests |
 
+Model budget:
+
+| Task | Tier | Model | Approval |
+|---|---|---|---|
+| AVG-301 | strong | `gpt-5.5` | sprint approval required |
+| AVG-302 | strong | `gpt-5.5` | sprint approval required |
+| AVG-303 | strong | `gpt-5.5` | sprint approval required |
+| AVG-304 | strong | `gpt-5.5` | sprint approval required |
+| AVG-305 | standard | `gpt-5.4` | automatic after sprint approval |
+
 Exit criteria:
 
 - claims validate against JSON Schema;
@@ -86,6 +126,16 @@ Goal: prove AVG claim discipline with evals and visible validation output.
 | AVG-403 | Backend | yes | yellow | validation API integration |
 | AVG-404 | Frontend | yes | yellow | minimal validation panel |
 | AVG-405 | Docs | yes | green | behavior ledger and release notes |
+
+Model budget:
+
+| Task | Tier | Model | Approval |
+|---|---|---|---|
+| AVG-401 | strong | `gpt-5.5` | sprint approval required |
+| AVG-402 | review | `gpt-5.5` | sprint approval required |
+| AVG-403 | standard | `gpt-5.4` | automatic after sprint approval |
+| AVG-404 | standard | `gpt-5.4` | automatic after sprint approval |
+| AVG-405 | minimal | `gpt-5.4-mini` | automatic after sprint approval |
 
 Exit criteria:
 

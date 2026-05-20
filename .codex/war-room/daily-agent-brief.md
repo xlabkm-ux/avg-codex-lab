@@ -9,6 +9,7 @@ Approved plan:
 - `docs/00-product/mvp-0-2-development-plan.md`
 - `.codex/war-room/sprint-backlog.md`
 - `.codex/agent-execution-matrix.md`
+- `.codex/model-policy.md`
 
 ## Active Branches
 
@@ -48,3 +49,11 @@ Do not edit without owner:
 | AVG-001 | Architect | green | contract spread | keep schema/API changes sequential |
 | AVG-002 | DevOps | green | CI churn | mirror local commands only |
 | AVG-004 | QA | green | fixtures may become shared contract | escalate before changing schemas |
+
+## Model Watch
+
+| Task | Agent | Approved Model | Escalation |
+|---|---|---|---|
+| AVG-001 | Architect | `gpt-5.5` | already strong; no silent substitution |
+| AVG-002 | DevOps | `gpt-5.4-mini` | request approval for `standard` |
+| AVG-004 | QA | `gpt-5.4` | request approval for `strong` or `review` |
