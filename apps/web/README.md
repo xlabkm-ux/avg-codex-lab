@@ -29,6 +29,8 @@ Minimal web dialogue shell for Sprint 2.
 - `renderDialogueFlowPageFromGroundedReport(projectId, sessionId, messages, report)` renders the full page from a grounded composition report.
 - `createStructuredResponseDetailsPanel(response)` builds a contract-shaped response details view model.
 - `renderStructuredResponseDetailsPanel(response)` renders the structured response summary, contract fields, risk markers and artifacts.
+- `createClaimReviewPanel(responseOrReport)` builds the AVG-706 claim review view model from a structured response or claim extraction report.
+- `renderClaimReviewPanel(responseOrReport)` renders extracted claims from summary, scope and next action with claim status, language mode, risk level, boundary notes and scoped repair suggestions.
 - `createGroundedResponseDetailsPanel(response, grounding)` builds the citation panel view model for grounded answers.
 - `renderGroundedResponseDetailsPanel(response, grounding)` renders citations, grounded claims, interpretations, unsupported claims and the boundary statement.
 - `createGroundedRetrievalFlow(projectId, sessionId, query, retrievalHits, report)` builds the AVG-705 grounded retrieval flow with query, retrieval hits, snippet ids, citation ids, matched text, confidence and grounded response boundary.
@@ -46,6 +48,7 @@ The package intentionally stays framework-free for the first web slice. It gives
 import {
   createLocalWorkspaceState,
   renderGroundedResponseDetailsPanel,
+  renderClaimReviewPanel,
   renderConceptMapShell,
   renderDialogueMessageSurface,
   renderDialogueMessageSurfaceFromGroundedReport,
@@ -212,6 +215,20 @@ const details = renderStructuredResponseDetailsPanel({
   map_territory_boundary: "preserved",
   next_action: "continue with the next message",
 });
+const claimReview = renderClaimReviewPanel({
+  id: "response-7",
+  project_id: "project-7",
+  session_id: "session-3",
+  message_id: "msg-2",
+  summary: "A structured reply with explicit boundaries",
+  scope: "planning a dialogue slice",
+  claim_status: "boundary_statement",
+  language_mode: "operational_description",
+  validation_risk: "low",
+  risk_markers: ["no hidden claims"],
+  map_territory_boundary: "preserved",
+  next_action: "continue with the next message",
+});
 const grounded = renderGroundedResponseDetailsPanel(
   {
     id: "response-7",
@@ -253,6 +270,7 @@ The workspace shell keeps project/session state browser-local and labels that bo
 The grounded response panel keeps citations explicit and separates supported claims from interpretation and unsupported content.
 The dialogue surface can inline the grounded response payload so the same real grounded object that comes from the API is visible alongside the dialogue thread.
 The structured dialogue surface treats invalid assistant output as a visible schema or boundary error instead of rendering it as normal prose.
+The claim review panel uses the validation package extraction report and treats repair suggestions as scoped edits, not automatic truth.
 The report-driven helper keeps the web flow aligned with grounded composition output rather than with ad hoc local panel assembly.
 The flow page helper composes the shell and dialogue surface into a single page-level HTML artifact.
 

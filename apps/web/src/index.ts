@@ -14,8 +14,11 @@ import {
 import type {
   AvgGroundedResponse,
   AvgRetrievalHit,
+  ClaimExtractionReport,
+  ExtractedClaimRecord,
   GroundedResponseCompositionReport,
 } from "@avg/validation";
+import { extractClaimsFromAvgResponse } from "@avg/validation";
 
 export type ProjectSessionShell = {
   kind: "project-session-shell";
@@ -151,6 +154,7 @@ export type StructuredDialogueSurface = {
   composerPlaceholder: string;
   submitLabel: string;
   responseDetails?: StructuredResponseDetailsPanel;
+  claimReview?: ClaimReviewPanel;
   error?: StructuredDialogueError;
   recoveredFrom?: StructuredDialogueError;
 };
@@ -195,6 +199,20 @@ export type GroundedResponseDetailsPanel = {
   title: string;
   response: AvgStructuredResponse;
   grounding: GroundedResponseBoundary;
+};
+
+export type ClaimReviewPanel = {
+  kind: "claim-review-panel";
+  title: string;
+  responseId?: string;
+  projectId?: string;
+  sessionId?: string;
+  accepted: boolean;
+  responseSchema: ValidationResult;
+  claims: ExtractedClaimRecord[];
+  boundaryNotes: string[];
+  emptyStateTitle: string;
+  emptyStateBody: string;
 };
 
 export type GroundedRetrievalFlowStatus = "ready" | "missing_evidence";
@@ -823,6 +841,7 @@ export function createStructuredDialogueSurface(
     messages,
     status: input.recoveredFrom === undefined ? "ready" : "recovered",
     responseDetails: createStructuredResponseDetailsPanel(response),
+    claimReview: createClaimReviewPanel(response),
     ...(input.recoveredFrom !== undefined ? { recoveredFrom: input.recoveredFrom } : {}),
   };
 }
@@ -900,6 +919,14 @@ export function renderStructuredDialogueSurface(
           ),
           `  </section>`,
         ];
+  const claimReviewPanel =
+    surface.claimReview === undefined
+      ? []
+      : [
+          `  <section aria-label="dialogue-claim-review">`,
+          ...indentMarkup(renderClaimReviewPanel(surface.claimReview), "    "),
+          `  </section>`,
+        ];
 
   return [
     `<section data-surface="${surface.kind}" data-project-id="${escapeHtml(surface.projectId)}" data-session-id="${escapeHtml(surface.sessionId)}" data-dialogue-status="${escapeHtml(surface.status)}">`,
@@ -925,6 +952,7 @@ export function renderStructuredDialogueSurface(
     ...errorPanel,
     ...recoveredPanel,
     ...detailsPanel,
+    ...claimReviewPanel,
     `  <section aria-label="dialogue-composer">`,
     `    <label>${escapeHtml(surface.composerLabel)}</label>`,
     `    <textarea placeholder="${escapeHtml(surface.composerPlaceholder)}">${escapeHtml(surface.rawThought)}</textarea>`,
@@ -978,6 +1006,12 @@ export function renderDialogueMessageSurface(
             ),
             "    ",
           ),
+          `    <section aria-label="grounded-claim-review">`,
+          ...indentMarkup(
+            renderClaimReviewPanel(surface.groundedResponse.response),
+            "      ",
+          ),
+          `    </section>`,
           `  </section>`,
         ]
       : [];
@@ -1244,6 +1278,153 @@ export function renderGroundedResponseDetailsPanel(
     `    <ul>`,
     ...(unsupportedClaimItems.length > 0 ? unsupportedClaimItems : ["    <li>None</li>"]),
     `    </ul>`,
+    `  </section>`,
+    `</section>`,
+  ].join("\n");
+}
+
+function isClaimExtractionReport(value: unknown): value is ClaimExtractionReport {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "responseSchema" in value &&
+    "claims" in value &&
+    "accepted" in value &&
+    "boundaryNotes" in value
+  );
+}
+
+function isClaimReviewPanel(value: unknown): value is ClaimReviewPanel {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "kind" in value &&
+    value.kind === "claim-review-panel"
+  );
+}
+
+function hasMapTerritoryRisk(record: ExtractedClaimRecord): boolean {
+  return [
+    record.claim.claim_status,
+    record.claim.language_mode,
+    ...record.claim.risks,
+    ...record.validation.risks,
+    ...record.riskAssessment.riskMarkers,
+    ...record.riskAssessment.boundaryNotes,
+  ].some((value) => value.includes("map_territory") || value.includes("territory"));
+}
+
+export function createClaimReviewPanel(
+  input: unknown | ClaimExtractionReport,
+): ClaimReviewPanel {
+  const report = isClaimExtractionReport(input)
+    ? input
+    : extractClaimsFromAvgResponse(input);
+  const response = !isClaimExtractionReport(input) && report.responseSchema.valid
+    ? (input as AvgStructuredResponse)
+    : undefined;
+
+  return {
+    kind: "claim-review-panel",
+    title: "Claim review",
+    ...(response !== undefined
+      ? {
+          responseId: response.id,
+          projectId: response.project_id,
+          sessionId: response.session_id,
+        }
+      : {}),
+    accepted: report.accepted,
+    responseSchema: report.responseSchema,
+    claims: report.claims,
+    boundaryNotes: [...report.boundaryNotes],
+    emptyStateTitle: "No extracted claims",
+    emptyStateBody:
+      "Claim review waits for a schema-valid AVG response before treating summary, scope and next action as inspectable claims.",
+  };
+}
+
+export function renderClaimReviewPanel(
+  input: unknown | ClaimExtractionReport | ClaimReviewPanel,
+): string {
+  const panel =
+    isClaimReviewPanel(input)
+      ? input
+      : createClaimReviewPanel(input);
+  const boundaryNoteItems = panel.boundaryNotes.map(
+    (note) => `    <li>${escapeHtml(note)}</li>`,
+  );
+  const claimItems = panel.claims.map((record) => {
+    const repairItems = record.riskAssessment.repairSuggestions.map(
+      (suggestion) => `        <li>${escapeHtml(suggestion)}</li>`,
+    );
+    const riskMarkerItems = record.riskAssessment.riskMarkers.map(
+      (marker) => `        <li>${escapeHtml(marker)}</li>`,
+    );
+    const boundaryItems = [
+      ...record.validation.boundaryNotes,
+      ...record.riskAssessment.boundaryNotes,
+    ].map((note) => `        <li>${escapeHtml(note)}</li>`);
+    const sourceRefs = record.claim.source_refs ?? [];
+
+    return [
+      `    <li data-claim-id="${escapeHtml(record.claim.id)}" data-source-field="${escapeHtml(record.sourceField)}" data-claim-status="${escapeHtml(record.claim.claim_status)}" data-language-mode="${escapeHtml(record.claim.language_mode)}" data-risk-level="${escapeHtml(record.riskAssessment.riskLevel)}" data-validation-accepted="${escapeHtml(String(record.validation.accepted))}" data-should-repair="${escapeHtml(String(record.riskAssessment.shouldRepair))}" data-metaphor-only="${escapeHtml(String(record.claim.claim_status === "metaphor_only" || record.claim.language_mode === "metaphor"))}" data-map-territory-risk="${escapeHtml(String(hasMapTerritoryRisk(record)))}">`,
+      `      <strong>${escapeHtml(record.sourceField)}</strong>`,
+      `      <p>${escapeHtml(record.claim.statement)}</p>`,
+      `      <dl>`,
+      `        <div><dt>Scope</dt><dd>${escapeHtml(record.claim.scope ?? "not specified")}</dd></div>`,
+      `        <div><dt>Claim status</dt><dd>${escapeHtml(record.claim.claim_status)}</dd></div>`,
+      `        <div><dt>Language mode</dt><dd>${escapeHtml(record.claim.language_mode)}</dd></div>`,
+      `        <div><dt>Risk level</dt><dd>${escapeHtml(record.riskAssessment.riskLevel)}</dd></div>`,
+      `        <div><dt>Source refs</dt><dd>${escapeHtml(sourceRefs.length > 0 ? sourceRefs.join(", ") : "none")}</dd></div>`,
+      `      </dl>`,
+      `      <section aria-label="claim-risk-markers">`,
+      `        <h4>Risk markers</h4>`,
+      `        <ul>`,
+      ...(riskMarkerItems.length > 0 ? riskMarkerItems : ["        <li>None</li>"]),
+      `        </ul>`,
+      `      </section>`,
+      `      <section aria-label="claim-boundary-notes">`,
+      `        <h4>Boundary notes</h4>`,
+      `        <ul>`,
+      ...(boundaryItems.length > 0 ? boundaryItems : ["        <li>No boundary notes</li>"]),
+      `        </ul>`,
+      `      </section>`,
+      `      <section aria-label="claim-repair-suggestions">`,
+      `        <h4>Repair suggestions</h4>`,
+      `        <p>Scoped suggestions, not automatic truth.</p>`,
+      `        <ul>`,
+      ...(repairItems.length > 0 ? repairItems : ["        <li>No repair suggested</li>"]),
+      `        </ul>`,
+      `      </section>`,
+      `    </li>`,
+    ].join("\n");
+  });
+
+  return [
+    `<section data-panel="${panel.kind}" data-claim-review-accepted="${escapeHtml(String(panel.accepted))}"${panel.responseId === undefined ? "" : ` data-response-id="${escapeHtml(panel.responseId)}"`}${panel.projectId === undefined ? "" : ` data-project-id="${escapeHtml(panel.projectId)}"`}${panel.sessionId === undefined ? "" : ` data-session-id="${escapeHtml(panel.sessionId)}"`}>`,
+    `  <header>`,
+    `    <h3>${escapeHtml(panel.title)}</h3>`,
+    `    <p>Extracted claims are working map records, not Reality.</p>`,
+    `  </header>`,
+    `  <aside aria-label="claim-review-boundary">`,
+    `    <strong>Repair suggestions are scoped edits, not automatic truth.</strong>`,
+    `    <p>Metaphor-only and map/territory issues stay marked before any claim is reused.</p>`,
+    `  </aside>`,
+    `  <section aria-label="claim-review-boundary-notes">`,
+    `    <h4>Report boundary notes</h4>`,
+    `    <ul>`,
+    ...(boundaryNoteItems.length > 0 ? boundaryNoteItems : ["    <li>No report-level boundary notes</li>"]),
+    `    </ul>`,
+    `  </section>`,
+    `  <section aria-label="claim-review-list">`,
+    `    <h4>Extracted claims</h4>`,
+    ...(claimItems.length > 0
+      ? [`    <ol>`, ...claimItems, `    </ol>`]
+      : [
+          `    <strong>${escapeHtml(panel.emptyStateTitle)}</strong>`,
+          `    <p>${escapeHtml(panel.emptyStateBody)}</p>`,
+        ]),
     `  </section>`,
     `</section>`,
   ].join("\n");

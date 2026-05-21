@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   createAndSaveWorkspaceState,
+  createClaimReviewPanel,
   createLocalProjectRecord,
   createLocalSessionRecord,
   createLocalWorkspaceState,
@@ -22,6 +23,7 @@ import {
   parseWorkspaceState,
   resetWorkspaceState,
   renderConceptMapShell,
+  renderClaimReviewPanel,
   renderDialogueMessageSurface,
   renderDialogueMessageSurfaceFromGroundedReport,
   renderDialogueFlowPage,
@@ -830,6 +832,79 @@ describe("web app smoke surface", () => {
     expect(page).toContain("operational_description");
     expect(page).toContain("Map/territory boundary");
     expect(page).toContain("session outline");
+  });
+
+  it("creates and renders claim review with risk and scoped repair suggestions", () => {
+    const response = {
+      id: "response-706",
+      project_id: "project-706",
+      session_id: "session-706",
+      message_id: "msg-706",
+      summary: "The product always proves that the map is the territory.",
+      scope: "AVG-706 claim review smoke path",
+      claim_status: "prohibited_positive_claim",
+      language_mode: "direct_description",
+      validation_risk: "critical",
+      risk_markers: ["map_territory_substitution"],
+      map_territory_boundary: "violated",
+      next_action: "downgrade the statement before using it as evidence",
+    } as const;
+
+    const panel = createClaimReviewPanel(response);
+
+    expect(panel).toMatchObject({
+      kind: "claim-review-panel",
+      title: "Claim review",
+      responseId: "response-706",
+      accepted: true,
+    });
+    expect(panel.claims.map((record) => record.sourceField)).toEqual([
+      "summary",
+      "scope",
+      "next_action",
+    ]);
+    expect(panel.claims[0]?.riskAssessment.riskLevel).toBe("critical");
+    expect(panel.claims[0]?.riskAssessment.repairSuggestions.length).toBeGreaterThan(0);
+
+    const rendered = renderClaimReviewPanel(panel);
+
+    expect(rendered).toContain('data-panel="claim-review-panel"');
+    expect(rendered).toContain('data-response-id="response-706"');
+    expect(rendered).toContain('data-source-field="summary"');
+    expect(rendered).toContain('data-risk-level="critical"');
+    expect(rendered).toContain('data-map-territory-risk="true"');
+    expect(rendered).toContain("Scoped suggestions, not automatic truth.");
+    expect(rendered).toContain("Repair suggestions are scoped edits, not automatic truth.");
+  });
+
+  it("renders claim review inside the structured dialogue surface", () => {
+    const response = {
+      id: "response-706-dialogue",
+      project_id: "project-706",
+      session_id: "session-706",
+      message_id: "msg-706-dialogue",
+      summary: "This is a metaphorical lens for planning, not a fact about Reality.",
+      scope: "AVG-706 dialogue wiring",
+      claim_status: "metaphor_only",
+      language_mode: "metaphor",
+      validation_risk: "high",
+      risk_markers: ["metaphor_as_fact"],
+      map_territory_boundary: "preserved",
+      next_action: "label the metaphor before turning it into a model",
+    } as const;
+
+    const rendered = renderStructuredDialogueSurface({
+      projectId: "project-706",
+      sessionId: "session-706",
+      rawThought: "Use a metaphor for planning.",
+      response,
+    });
+
+    expect(rendered).toContain('aria-label="dialogue-claim-review"');
+    expect(rendered).toContain('data-panel="claim-review-panel"');
+    expect(rendered).toContain('data-metaphor-only="true"');
+    expect(rendered).toContain("metaphor_only");
+    expect(rendered).toContain("label the metaphor before turning it into a model");
   });
 
   it("creates and renders a grounded response citation panel", () => {
