@@ -5,6 +5,7 @@ This file is the live progress view for Phase 5.
 Source of truth:
 
 - `docs/00-product/mvp-5-working-interface-plan.md`
+- `docs/00-product/product-layer-gap-matrix.md`
 - `docs/00-product/mvp-6-advanced-services-plan.md`
 - `.codex/war-room/sprint-backlog.md`
 - `.codex/war-room/daily-agent-brief.md`
@@ -18,6 +19,8 @@ Status legend:
 - `deferred`: planned for a later approved milestone.
 
 ## Snapshot
+
+Layer-level product gaps are tracked in `docs/00-product/product-layer-gap-matrix.md`.
 
 | Area | Progress | Current State |
 |---|---:|---|
