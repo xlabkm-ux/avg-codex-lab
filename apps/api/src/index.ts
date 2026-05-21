@@ -1,6 +1,6 @@
 import { appendFileSync, existsSync, mkdirSync } from "node:fs";
 import { createServer, type IncomingMessage, type Server } from "node:http";
-import { isAbsolute, relative, resolve, sep } from "node:path";
+import { isAbsolute, relative, resolve, sep, win32 } from "node:path";
 import { URL } from "node:url";
 import {
   cloneGraphSnapshot,
@@ -132,6 +132,10 @@ export interface SearchProjectDocumentsRequest {
   limit?: number;
 }
 
+function isAbsoluteLabPath(value: string): boolean {
+  return isAbsolute(value) || win32.isAbsolute(value);
+}
+
 function parsePositiveIntegerConfig(
   value: string | undefined,
   fallback: number,
@@ -169,9 +173,7 @@ export function createApiRuntimeConfig(
         "AVG_API_REQUEST_BODY_LIMIT_BYTES"
       ),
     logDirectory:
-      overrides.logDirectory ??
-      env.AVG_API_LOG_DIRECTORY ??
-      defaultApiRuntimeConfig.logDirectory
+      overrides.logDirectory ?? env.AVG_API_LOG_DIRECTORY ?? defaultApiRuntimeConfig.logDirectory
   };
 
   if (!Number.isInteger(config.requestTimeoutMs) || config.requestTimeoutMs <= 0) {
@@ -192,7 +194,7 @@ export function resolveLabRelativePath(rootDir: string, requestedPath: string): 
     throw new Error("requestedPath is required.");
   }
 
-  if (isAbsolute(requestedPath)) {
+  if (isAbsoluteLabPath(requestedPath)) {
     throw new Error("Absolute paths are not allowed inside the AVG lab boundary.");
   }
 
@@ -204,7 +206,7 @@ export function resolveLabRelativePath(rootDir: string, requestedPath: string): 
     relativePath === "" ||
     relativePath.startsWith("..") ||
     relativePath.includes(`..${sep}`) ||
-    isAbsolute(relativePath)
+    isAbsoluteLabPath(relativePath)
   ) {
     throw new Error("Path traversal outside the AVG lab boundary is not allowed.");
   }
@@ -293,7 +295,11 @@ export function createSession(projectId: string, title = "Conversation session")
   return session;
 }
 
-export function appendMessage(sessionId: string, content: string, role: MessageRecord["role"] = "user"): MessageRecord {
+export function appendMessage(
+  sessionId: string,
+  content: string,
+  role: MessageRecord["role"] = "user"
+): MessageRecord {
   if (!sessions.has(sessionId)) {
     throw new Error(`Unknown session: ${sessionId}`);
   }
@@ -351,7 +357,11 @@ export function listProjectDocuments(projectId: string) {
   return documentRepository.listDocuments(projectId);
 }
 
-export function searchProjectDocuments(projectId: string, query: string, options: SearchProjectDocumentsOptions = {}) {
+export function searchProjectDocuments(
+  projectId: string,
+  query: string,
+  options: SearchProjectDocumentsOptions = {}
+) {
   if (!projects.has(projectId)) {
     throw new Error(`Unknown project: ${projectId}`);
   }
@@ -500,11 +510,7 @@ function safeWriteApiErrorLog(error: unknown, config = createApiRuntimeConfig())
 
 function internalErrorResponse(error: unknown): ApiRouteResponse {
   safeWriteApiErrorLog(error);
-  return errorResponse(
-    500,
-    "INTERNAL_ERROR",
-    "AVG hit an internal API failure. Try again later."
-  );
+  return errorResponse(500, "INTERNAL_ERROR", "AVG hit an internal API failure. Try again later.");
 }
 
 function isRenderGroundedProjectDialoguePageRequest(
@@ -537,14 +543,10 @@ function isRegisterProjectDocumentBody(value: unknown): value is RegisterProject
     typeof record.source_kind === "string" &&
     typeof record.text === "string" &&
     (record.created_at === undefined || typeof record.created_at === "string") &&
-    (
-      metadata === undefined ||
-      (
-        typeof metadata === "object" &&
+    (metadata === undefined ||
+      (typeof metadata === "object" &&
         metadata !== null &&
-        Object.values(metadata).every((value) => typeof value === "string")
-      )
-    )
+        Object.values(metadata).every((value) => typeof value === "string")))
   );
 }
 
@@ -563,7 +565,7 @@ function isSearchProjectDocumentsRequest(value: unknown): value is SearchProject
 export function handleGroundedProjectDialoguePageRoute(
   method: string,
   pathname: string,
-  bodyText: string,
+  bodyText: string
 ): ApiRouteResponse {
   if (method === "GET" && pathname === "/health") {
     return jsonResponse(200, health());
@@ -716,15 +718,10 @@ export function handleGroundedProjectDialoguePageRoute(
     }
   }
 
-  return errorResponse(
-    404,
-    "NOT_FOUND",
-    "The requested route is not available.",
-    {
-      method,
-      pathname
-    }
-  );
+  return errorResponse(404, "NOT_FOUND", "The requested route is not available.", {
+    method,
+    pathname
+  });
 }
 
 export function createApiServer(options: CreateApiServerOptions = {}): Server {

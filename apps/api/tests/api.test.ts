@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { request } from "node:http";
+import { join } from "node:path";
 import {
   appendMessage,
   createApiRuntimeConfig,
@@ -66,9 +67,9 @@ describe("api app smoke surface", () => {
     const resolved = resolveLabRelativePath("E:/CODEX/avg-codex-lab", "apps/api/src/index.ts");
 
     expect(resolved.absolutePath).toContain("apps");
-    expect(() =>
-      resolveLabRelativePath("E:/CODEX/avg-codex-lab", "../../etc/passwd")
-    ).toThrow("Path traversal outside the AVG lab boundary is not allowed.");
+    expect(() => resolveLabRelativePath("E:/CODEX/avg-codex-lab", "../../etc/passwd")).toThrow(
+      "Path traversal outside the AVG lab boundary is not allowed."
+    );
     expect(() =>
       resolveLabRelativePath("E:/CODEX/avg-codex-lab", "E:/Windows/System32/drivers/etc/hosts")
     ).toThrow("Absolute paths are not allowed");
@@ -84,7 +85,7 @@ describe("api app smoke surface", () => {
         logDirectory: tempRoot
       });
 
-      const logPath = `${tempRoot}\\api-errors.ndjson`;
+      const logPath = join(tempRoot, "api-errors.ndjson");
       expect(existsSync(logPath)).toBe(true);
       expect(readFileSync(logPath, "utf8")).toContain("private traceback context");
     } finally {
@@ -117,7 +118,11 @@ describe("api app smoke surface", () => {
   });
 
   it("creates a linked project/session/message slice in one call", () => {
-    const record = createProjectSessionMessage("Research project", "Synthesis", "Capture the main idea.");
+    const record = createProjectSessionMessage(
+      "Research project",
+      "Synthesis",
+      "Capture the main idea."
+    );
 
     expect(record.project.name).toBe("Research project");
     expect(record.session.projectId).toBe(record.project.id);
@@ -148,7 +153,9 @@ describe("api app smoke surface", () => {
       }
     });
     expect(getProjectDocument(result.document.id)).toEqual(result.document);
-    expect(getProjectDocumentText(result.document.id)).toBe("Registered document text stays local for retrieval.");
+    expect(getProjectDocumentText(result.document.id)).toBe(
+      "Registered document text stays local for retrieval."
+    );
     expect(listProjectDocuments(project.id)).toEqual([result.document]);
   });
 
@@ -224,14 +231,14 @@ describe("api app smoke surface", () => {
       validation_risk: "low",
       risk_markers: ["retrieval_grounded"],
       map_territory_boundary: "preserved",
-      next_action: "render the dialogue page",
+      next_action: "render the dialogue page"
     } as const;
 
     const page = renderGroundedProjectDialoguePage(project.id, {
       sessionId: "session_002",
       messages: [
         { id: "message_001", role: "user", content: "start the page" },
-        { id: "message_002", role: "assistant", content: "grounded page bridge" },
+        { id: "message_002", role: "assistant", content: "grounded page bridge" }
       ],
       response,
       query: "grounded page bridge"
@@ -264,7 +271,7 @@ describe("api app smoke surface", () => {
       validation_risk: "low",
       risk_markers: ["retrieval_grounded"],
       map_territory_boundary: "preserved",
-      next_action: "serve the page route",
+      next_action: "serve the page route"
     } as const;
 
     const routeResponse = handleGroundedProjectDialoguePageRoute(
@@ -274,7 +281,7 @@ describe("api app smoke surface", () => {
         sessionId: "session_003",
         messages: [
           { id: "message_001", role: "user", content: "route request" },
-          { id: "message_002", role: "assistant", content: "route reply" },
+          { id: "message_002", role: "assistant", content: "route reply" }
         ],
         response,
         query: "HTTP route bridge"
@@ -412,32 +419,34 @@ describe("api app smoke surface", () => {
         throw new Error("Expected an ephemeral local server port.");
       }
 
-      const response = await new Promise<{ statusCode: number; body: string }>((resolvePromise, rejectPromise) => {
-        const clientRequest = request(
-          {
-            hostname: "127.0.0.1",
-            port: address.port,
-            path: "/projects/project_001/retrieval/search",
-            method: "POST",
-            headers: {
-              "content-type": "application/json"
-            }
-          },
-          (clientResponse) => {
-            const chunks: Buffer[] = [];
-            clientResponse.on("data", (chunk: Buffer) => chunks.push(chunk));
-            clientResponse.on("end", () => {
-              resolvePromise({
-                statusCode: clientResponse.statusCode ?? 0,
-                body: Buffer.concat(chunks).toString("utf8")
+      const response = await new Promise<{ statusCode: number; body: string }>(
+        (resolvePromise, rejectPromise) => {
+          const clientRequest = request(
+            {
+              hostname: "127.0.0.1",
+              port: address.port,
+              path: "/projects/project_001/retrieval/search",
+              method: "POST",
+              headers: {
+                "content-type": "application/json"
+              }
+            },
+            (clientResponse) => {
+              const chunks: Buffer[] = [];
+              clientResponse.on("data", (chunk: Buffer) => chunks.push(chunk));
+              clientResponse.on("end", () => {
+                resolvePromise({
+                  statusCode: clientResponse.statusCode ?? 0,
+                  body: Buffer.concat(chunks).toString("utf8")
+                });
               });
-            });
-          }
-        );
+            }
+          );
 
-        clientRequest.on("error", rejectPromise);
-        clientRequest.end(JSON.stringify({ query: "too large for the configured test limit" }));
-      });
+          clientRequest.on("error", rejectPromise);
+          clientRequest.end(JSON.stringify({ query: "too large for the configured test limit" }));
+        }
+      );
 
       expect(response.statusCode).toBe(413);
       expect(JSON.parse(response.body)).toMatchObject({
@@ -446,7 +455,7 @@ describe("api app smoke surface", () => {
         message: "The request body exceeds the configured API limit."
       });
       expect(response.body).not.toContain("Request body too large.");
-      expect(existsSync(`${tempRoot}\\api-errors.ndjson`)).toBe(true);
+      expect(existsSync(join(tempRoot, "api-errors.ndjson"))).toBe(true);
     } finally {
       await new Promise<void>((resolvePromise, rejectPromise) => {
         server.close((error) => {
