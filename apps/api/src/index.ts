@@ -15,12 +15,17 @@ import {
   type AvgRetrievalHit,
   type RegisterDocumentInput,
   type SearchDocumentsOptions,
+  type SearchDocumentsResult,
   type RegisterDocumentResult
 } from "@avg/retrieval";
 import { type AvgStructuredResponse } from "@avg/schemas";
 import { composeGroundedResponse, type GroundedResponseCompositionReport } from "@avg/validation";
 import { validateClaimContract } from "@avg/validation";
-import { renderDialogueFlowPageFromGroundedReport, type DialogueMessage } from "@avg/web";
+import {
+  renderDialogueFlowPageFromGroundedReport,
+  renderGroundedRetrievalFlow,
+  type DialogueMessage
+} from "@avg/web";
 
 export interface HealthResponse {
   status: "ok";
@@ -88,6 +93,11 @@ export interface ComposeGroundedProjectResponseInput {
   limit?: number;
 }
 
+export interface GroundedProjectRetrievalFlow {
+  retrieval: SearchDocumentsResult;
+  report: GroundedResponseCompositionReport;
+}
+
 export interface RenderGroundedProjectDialoguePageInput extends ComposeGroundedProjectResponseInput {
   sessionId: string;
   messages: DialogueMessage[];
@@ -130,6 +140,10 @@ export interface RenderGroundedProjectDialoguePageRequest extends RenderGrounded
 export interface SearchProjectDocumentsRequest {
   query: string;
   limit?: number;
+}
+
+export interface RenderGroundedProjectRetrievalFlowRequest extends ComposeGroundedProjectResponseInput {
+  sessionId: string;
 }
 
 function isAbsoluteLabPath(value: string): boolean {
@@ -384,6 +398,39 @@ export function composeGroundedProjectResponse(
   return composeGroundedResponse(input.response, retrieval.hits as AvgRetrievalHit[]);
 }
 
+export function createGroundedProjectRetrievalFlow(
+  projectId: string,
+  input: ComposeGroundedProjectResponseInput
+): GroundedProjectRetrievalFlow {
+  if (!projects.has(projectId)) {
+    throw new Error(`Unknown project: ${projectId}`);
+  }
+
+  const retrieval = documentRepository.searchDocuments(projectId, input.query, {
+    ...(input.limit !== undefined ? { limit: input.limit } : {})
+  });
+
+  return {
+    retrieval,
+    report: composeGroundedResponse(input.response, retrieval.hits as AvgRetrievalHit[])
+  };
+}
+
+export function renderGroundedProjectRetrievalFlow(
+  projectId: string,
+  input: RenderGroundedProjectRetrievalFlowRequest
+): string {
+  const flow = createGroundedProjectRetrievalFlow(projectId, input);
+
+  return renderGroundedRetrievalFlow(
+    projectId,
+    input.sessionId,
+    input.query,
+    flow.retrieval.hits as AvgRetrievalHit[],
+    flow.report
+  );
+}
+
 export function renderGroundedProjectDialoguePage(
   projectId: string,
   input: RenderGroundedProjectDialoguePageInput
@@ -562,6 +609,25 @@ function isSearchProjectDocumentsRequest(value: unknown): value is SearchProject
   );
 }
 
+function isRenderGroundedProjectRetrievalFlowRequest(
+  value: unknown
+): value is RenderGroundedProjectRetrievalFlowRequest {
+  if (typeof value !== "object" || value === null) {
+    return false;
+  }
+
+  const record = value as Record<string, unknown>;
+  const response = record.response;
+  return (
+    typeof record.query === "string" &&
+    typeof record.sessionId === "string" &&
+    typeof response === "object" &&
+    response !== null &&
+    typeof (response as Record<string, unknown>).project_id === "string" &&
+    (record.limit === undefined || typeof record.limit === "number")
+  );
+}
+
 export function handleGroundedProjectDialoguePageRoute(
   method: string,
   pathname: string,
@@ -660,6 +726,55 @@ export function handleGroundedProjectDialoguePageRoute(
         "RETRIEVAL_QUERY_REQUIRED",
         error instanceof Error ? error.message : "Retrieval search failed."
       );
+    }
+  }
+
+  const groundedRetrievalFlowRouteMatch = /^\/projects\/([^/]+)\/retrieval\/grounded-flow$/.exec(pathname);
+  if (method === "POST" && groundedRetrievalFlowRouteMatch !== null) {
+    const projectId = groundedRetrievalFlowRouteMatch[1]!;
+    if (!isSafeRouteId(projectId)) {
+      return errorResponse(
+        400,
+        "INVALID_ROUTE_ID",
+        "Project route ids may contain only letters, numbers, underscores and hyphens."
+      );
+    }
+
+    try {
+      const parsedBody = JSON.parse(bodyText) as unknown;
+      if (!isRenderGroundedProjectRetrievalFlowRequest(parsedBody)) {
+        return errorResponse(
+          400,
+          "INVALID_REQUEST",
+          "The grounded retrieval flow request is missing required fields."
+        );
+      }
+
+      if (parsedBody.response.project_id !== projectId) {
+        return errorResponse(
+          400,
+          "PROJECT_ID_MISMATCH",
+          "The grounded retrieval flow response must match the route project id.",
+          {
+            projectId,
+            responseProjectId: parsedBody.response.project_id
+          }
+        );
+      }
+
+      const body = renderGroundedProjectRetrievalFlow(projectId, parsedBody);
+
+      return htmlResponse(body);
+    } catch (error) {
+      if (error instanceof SyntaxError) {
+        return errorResponse(
+          400,
+          "INVALID_JSON",
+          "The grounded retrieval flow request body must be valid JSON."
+        );
+      }
+
+      return internalErrorResponse(error);
     }
   }
 

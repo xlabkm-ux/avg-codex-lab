@@ -6,6 +6,7 @@ import {
   appendMessage,
   createApiRuntimeConfig,
   createApiServer,
+  createGroundedProjectRetrievalFlow,
   handleGroundedProjectDialoguePageRoute,
   composeGroundedProjectResponse,
   createProject,
@@ -24,6 +25,7 @@ import {
   registerProjectDocument,
   resolveLabRelativePath,
   renderGroundedProjectDialoguePage,
+  renderGroundedProjectRetrievalFlow,
   validateClaimRequest,
   writeApiErrorLog
 } from "../src/index";
@@ -250,6 +252,58 @@ describe("api app smoke surface", () => {
     expect(page).toContain("The dialogue page should show grounded responses inline.");
   });
 
+  it("creates and renders a grounded retrieval flow with retrieval hits and citations", () => {
+    const project = createProject("Grounded flow project");
+
+    const registered = registerProjectDocument(project.id, {
+      title: "Flow notes",
+      source_kind: "local_markdown",
+      text: "Grounded retrieval should show snippet ids, citation ids and confidence."
+    });
+
+    const response = {
+      id: "response_705",
+      project_id: project.id,
+      session_id: "session_705",
+      message_id: "message_705",
+      summary: "Grounded flow response",
+      scope: "AVG-705 API flow",
+      claim_status: "boundary_statement",
+      language_mode: "operational_description",
+      validation_risk: "low",
+      risk_markers: ["retrieval_grounded"],
+      map_territory_boundary: "preserved",
+      next_action: "inspect hits and citations"
+    } as const;
+
+    const flow = createGroundedProjectRetrievalFlow(project.id, {
+      response,
+      query: "snippet ids citation ids confidence"
+    });
+
+    expect(flow.retrieval.hits[0]).toMatchObject({
+      document_id: registered.document.id,
+      snippet_id: `snip_${registered.document.id}_001`,
+      citation_id: `cit_${registered.document.id}_001`,
+      confidence: "high"
+    });
+    expect(flow.report.groundedResponse?.grounding.citations[0]).toMatchObject({
+      snippet_id: `snip_${registered.document.id}_001`
+    });
+
+    const html = renderGroundedProjectRetrievalFlow(project.id, {
+      sessionId: "session_705",
+      response,
+      query: "snippet ids citation ids confidence"
+    });
+
+    expect(html).toContain('data-surface="grounded-retrieval-flow"');
+    expect(html).toContain(`data-snippet-id="snip_${registered.document.id}_001"`);
+    expect(html).toContain(`data-citation-id="cit_${registered.document.id}_001"`);
+    expect(html).toContain('data-confidence="high"');
+    expect(html).toContain("Grounded retrieval should show snippet ids");
+  });
+
   it("serves the grounded dialogue page route over the API boundary", () => {
     const project = createProject("Route project");
 
@@ -293,6 +347,42 @@ describe("api app smoke surface", () => {
     expect(routeResponse.body).toContain('data-page="dialogue-flow-page"');
     expect(routeResponse.body).toContain("Route-rendered grounded response");
     expect(routeResponse.body).toContain("The HTTP route should render the grounded page.");
+  });
+
+  it("serves the grounded retrieval flow route and keeps missing evidence visible", () => {
+    const project = createProject("Grounded flow route project");
+    const response = {
+      id: "response_705_route",
+      project_id: project.id,
+      session_id: "session_705_route",
+      message_id: "message_705_route",
+      summary: "Route-rendered grounded retrieval response",
+      scope: "AVG-705 route bridge",
+      claim_status: "boundary_statement",
+      language_mode: "operational_description",
+      validation_risk: "high",
+      risk_markers: ["missing_evidence"],
+      map_territory_boundary: "preserved",
+      next_action: "register evidence before claiming support"
+    } as const;
+
+    const routeResponse = handleGroundedProjectDialoguePageRoute(
+      "POST",
+      `/projects/${project.id}/retrieval/grounded-flow`,
+      JSON.stringify({
+        sessionId: "session_705_route",
+        response,
+        query: "unmatched evidence"
+      })
+    );
+
+    expect(routeResponse.statusCode).toBe(200);
+    expect(routeResponse.headers["content-type"]).toContain("text/html");
+    expect(routeResponse.body).toContain('data-surface="grounded-retrieval-flow"');
+    expect(routeResponse.body).toContain('data-retrieval-status="missing_evidence"');
+    expect(routeResponse.body).toContain('data-retrieval-confidence="none"');
+    expect(routeResponse.body).toContain("No registered snippets matched this question.");
+    expect(routeResponse.body).toContain("unsupported working map");
   });
 
   it("serves document registration and retrieval search routes over the API boundary", () => {

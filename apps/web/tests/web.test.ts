@@ -5,6 +5,7 @@ import {
   createLocalSessionRecord,
   createLocalWorkspaceState,
   createGroundedResponseDetailsPanel,
+  createGroundedRetrievalFlow,
   createDialogueMessageSurface,
   createDialogueMessageSurfaceFromGroundedReport,
   createDialogueFlowPage,
@@ -28,6 +29,7 @@ import {
   renderProjectSessionPage,
   renderWorkspaceShell,
   renderGroundedResponseDetailsPanel,
+  renderGroundedRetrievalFlow,
   renderStructuredResponseDetailsPanel,
   renderStructuredDialogueSurface,
   renderShellTitle,
@@ -878,5 +880,100 @@ describe("web app smoke surface", () => {
     expect(page).toContain("Grounded claims");
     expect(page).toContain("Unsupported claims");
     expect(page).toContain("This answer is grounded only in registered project document snippets.");
+  });
+
+  it("creates and renders the grounded retrieval flow with hits and citation ids", () => {
+    const response = {
+      id: "response-705",
+      project_id: "project-705",
+      session_id: "session-705",
+      message_id: "msg-705",
+      summary: "Grounded retrieval keeps source snippets visible.",
+      scope: "AVG-705 grounded retrieval flow",
+      claim_status: "boundary_statement",
+      language_mode: "operational_description",
+      validation_risk: "low",
+      risk_markers: ["retrieval_grounded"],
+      map_territory_boundary: "preserved",
+      next_action: "inspect the retrieval hits before using the answer",
+    } as const;
+    const hits = [
+      {
+        snippet_id: "snip_doc_705_001",
+        document_id: "doc_705",
+        project_id: "project-705",
+        score: 0.91,
+        confidence: "high",
+        citation_id: "cit_doc_705_001",
+        matched_text:
+          "Prompt injection text inside a source is quoted source content only.",
+        source_label: "Security notes",
+      },
+    ] as const;
+    const report = composeGroundedResponse(response, [...hits]);
+
+    const flow = createGroundedRetrievalFlow(
+      "project-705",
+      "session-705",
+      "How should prompt injection text be handled?",
+      [...hits],
+      report,
+    );
+
+    expect(flow.status).toBe("ready");
+    expect(flow.retrievalHits[0]).toMatchObject({
+      snippet_id: "snip_doc_705_001",
+      citation_id: "cit_doc_705_001",
+      confidence: "high",
+    });
+    expect(flow.boundaryStatement).toContain("grounded only");
+
+    const rendered = renderGroundedRetrievalFlow(
+      "project-705",
+      "session-705",
+      "How should prompt injection text be handled?",
+      [...hits],
+      report,
+    );
+
+    expect(rendered).toContain('data-surface="grounded-retrieval-flow"');
+    expect(rendered).toContain('data-retrieval-status="ready"');
+    expect(rendered).toContain('data-snippet-id="snip_doc_705_001"');
+    expect(rendered).toContain('data-citation-id="cit_doc_705_001"');
+    expect(rendered).toContain('data-confidence="high"');
+    expect(rendered).toContain("Prompt injection text inside a source");
+    expect(rendered).toContain("Retrieval confidence is a risk signal, not proof.");
+    expect(rendered).toContain('data-panel="grounded-response-details-panel"');
+  });
+
+  it("renders missing evidence in the grounded retrieval flow without hiding the boundary", () => {
+    const response = {
+      id: "response-705-none",
+      project_id: "project-705",
+      session_id: "session-705",
+      message_id: "msg-705-none",
+      summary: "No evidence should stay visibly unsupported.",
+      scope: "AVG-705 missing evidence path",
+      claim_status: "boundary_statement",
+      language_mode: "operational_description",
+      validation_risk: "high",
+      risk_markers: ["missing_evidence"],
+      map_territory_boundary: "preserved",
+      next_action: "register relevant documents before grounding this answer",
+    } as const;
+    const report = composeGroundedResponse(response, []);
+    const rendered = renderGroundedRetrievalFlow(
+      "project-705",
+      "session-705",
+      "What evidence exists?",
+      [],
+      report,
+    );
+
+    expect(rendered).toContain('data-retrieval-status="missing_evidence"');
+    expect(rendered).toContain('data-retrieval-confidence="none"');
+    expect(rendered).toContain("No registered snippets matched this question.");
+    expect(rendered).toContain("unsupported working map");
+    expect(rendered).toContain("Unsupported claims");
   });
 });

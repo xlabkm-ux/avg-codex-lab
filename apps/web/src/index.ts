@@ -13,6 +13,7 @@ import {
 } from "@avg/schemas";
 import type {
   AvgGroundedResponse,
+  AvgRetrievalHit,
   GroundedResponseCompositionReport,
 } from "@avg/validation";
 
@@ -194,6 +195,24 @@ export type GroundedResponseDetailsPanel = {
   title: string;
   response: AvgStructuredResponse;
   grounding: GroundedResponseBoundary;
+};
+
+export type GroundedRetrievalFlowStatus = "ready" | "missing_evidence";
+
+export type GroundedRetrievalFlow = {
+  kind: "grounded-retrieval-flow";
+  title: string;
+  projectId: string;
+  sessionId: string;
+  query: string;
+  status: GroundedRetrievalFlowStatus;
+  retrievalHits: AvgRetrievalHit[];
+  retrievalConfidence: "none" | "low" | "medium" | "high";
+  boundaryStatement: string;
+  groundedResponse?: DialogueSurfaceGrounding;
+  queryLabel: string;
+  queryPlaceholder: string;
+  submitLabel: string;
 };
 
 export type ConceptMapSource = GraphSnapshot | ClaimProjection;
@@ -1226,6 +1245,120 @@ export function renderGroundedResponseDetailsPanel(
     ...(unsupportedClaimItems.length > 0 ? unsupportedClaimItems : ["    <li>None</li>"]),
     `    </ul>`,
     `  </section>`,
+    `</section>`,
+  ].join("\n");
+}
+
+function retrievalConfidenceFromHits(
+  hits: AvgRetrievalHit[],
+): "none" | "low" | "medium" | "high" {
+  return hits[0]?.confidence ?? "none";
+}
+
+export function createGroundedRetrievalFlow(
+  projectId: string,
+  sessionId: string,
+  query: string,
+  retrievalHits: AvgRetrievalHit[],
+  report: GroundedResponseCompositionReport,
+): GroundedRetrievalFlow {
+  const groundedResponse =
+    report.groundedResponse === undefined
+      ? undefined
+      : {
+          response: report.groundedResponse.response,
+          grounding: report.groundedResponse.grounding,
+        };
+  const retrievalConfidence =
+    groundedResponse?.grounding.retrieval_confidence ?? retrievalConfidenceFromHits(retrievalHits);
+
+  return {
+    kind: "grounded-retrieval-flow",
+    title: renderShellTitle(),
+    projectId,
+    sessionId,
+    query: query.trim(),
+    status: retrievalHits.length === 0 || retrievalConfidence === "none" ? "missing_evidence" : "ready",
+    retrievalHits: retrievalHits.map((hit) => ({ ...hit })),
+    retrievalConfidence,
+    boundaryStatement:
+      groundedResponse?.grounding.boundary_statement ??
+      "No registered snippets matched this question, so AVG cannot ground the answer in project evidence.",
+    ...(groundedResponse !== undefined ? { groundedResponse } : {}),
+    queryLabel: "Grounded question",
+    queryPlaceholder: "Ask against registered project documents",
+    submitLabel: "Ask with evidence",
+  };
+}
+
+export function renderGroundedRetrievalFlow(
+  projectId: string,
+  sessionId: string,
+  query: string,
+  retrievalHits: AvgRetrievalHit[],
+  report: GroundedResponseCompositionReport,
+): string {
+  const flow = createGroundedRetrievalFlow(
+    projectId,
+    sessionId,
+    query,
+    retrievalHits,
+    report,
+  );
+  const hitItems = flow.retrievalHits.map((hit) =>
+    [
+      `    <li data-retrieval-hit="true" data-snippet-id="${escapeHtml(hit.snippet_id)}" data-citation-id="${escapeHtml(hit.citation_id)}" data-document-id="${escapeHtml(hit.document_id)}" data-confidence="${escapeHtml(hit.confidence)}" data-score="${escapeHtml(String(hit.score))}">`,
+      `      <strong>${escapeHtml(hit.source_label)}</strong>`,
+      `      <dl>`,
+      `        <div><dt>Snippet id</dt><dd>${escapeHtml(hit.snippet_id)}</dd></div>`,
+      `        <div><dt>Citation id</dt><dd>${escapeHtml(hit.citation_id)}</dd></div>`,
+      `        <div><dt>Confidence</dt><dd>${escapeHtml(hit.confidence)}</dd></div>`,
+      `        <div><dt>Score</dt><dd>${escapeHtml(String(hit.score))}</dd></div>`,
+      `      </dl>`,
+      `      <blockquote>${escapeHtml(hit.matched_text)}</blockquote>`,
+      `    </li>`,
+    ].join("\n"),
+  );
+  const groundedPanel =
+    flow.groundedResponse === undefined
+      ? []
+      : [
+          `  <section aria-label="grounded-response-panel">`,
+          `    <h3>Grounded response</h3>`,
+          ...indentMarkup(
+            renderGroundedResponseDetailsPanel(
+              flow.groundedResponse.response,
+              flow.groundedResponse.grounding,
+            ),
+            "    ",
+          ),
+          `  </section>`,
+        ];
+
+  return [
+    `<section data-surface="${flow.kind}" data-project-id="${escapeHtml(flow.projectId)}" data-session-id="${escapeHtml(flow.sessionId)}" data-retrieval-status="${escapeHtml(flow.status)}">`,
+    `  <header>`,
+    `    <p>${escapeHtml(flow.title)}</p>`,
+    `    <h2>Grounded retrieval</h2>`,
+    `  </header>`,
+    `  <section aria-label="grounded-question">`,
+    `    <label>${escapeHtml(flow.queryLabel)}</label>`,
+    `    <textarea placeholder="${escapeHtml(flow.queryPlaceholder)}">${escapeHtml(flow.query)}</textarea>`,
+    `    <button type="button" data-action="ask-grounded-question">${escapeHtml(flow.submitLabel)}</button>`,
+    `  </section>`,
+    `  <aside aria-label="retrieval-boundary" data-retrieval-confidence="${escapeHtml(flow.retrievalConfidence)}">`,
+    `    <strong>Retrieval confidence is a risk signal, not proof.</strong>`,
+    `    <p>${escapeHtml(flow.boundaryStatement)}</p>`,
+    `  </aside>`,
+    `  <section aria-label="retrieval-hits">`,
+    `    <h3>Retrieval hits</h3>`,
+    `    <ul>`,
+    ...(hitItems.length > 0
+      ? hitItems
+      : ["    <li>No registered snippets matched this question.</li>"]),
+    `    </ul>`,
+    `  </section>`,
+    ...groundedPanel,
     `</section>`,
   ].join("\n");
 }

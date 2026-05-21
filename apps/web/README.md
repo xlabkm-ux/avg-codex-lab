@@ -31,6 +31,8 @@ Minimal web dialogue shell for Sprint 2.
 - `renderStructuredResponseDetailsPanel(response)` renders the structured response summary, contract fields, risk markers and artifacts.
 - `createGroundedResponseDetailsPanel(response, grounding)` builds the citation panel view model for grounded answers.
 - `renderGroundedResponseDetailsPanel(response, grounding)` renders citations, grounded claims, interpretations, unsupported claims and the boundary statement.
+- `createGroundedRetrievalFlow(projectId, sessionId, query, retrievalHits, report)` builds the AVG-705 grounded retrieval flow with query, retrieval hits, snippet ids, citation ids, matched text, confidence and grounded response boundary.
+- `renderGroundedRetrievalFlow(projectId, sessionId, query, retrievalHits, report)` renders the AVG-705 retrieval flow and keeps missing evidence visible instead of hiding it behind a fluent answer.
 - `createConceptMapShell(source)` builds the React Flow-ready concept map shell from a graph snapshot or projection.
 - `renderConceptMapShell(source)` renders an explicit empty or populated concept map surface with map/territory boundary copy.
 
@@ -253,3 +255,15 @@ The dialogue surface can inline the grounded response payload so the same real g
 The structured dialogue surface treats invalid assistant output as a visible schema or boundary error instead of rendering it as normal prose.
 The report-driven helper keeps the web flow aligned with grounded composition output rather than with ad hoc local panel assembly.
 The flow page helper composes the shell and dialogue surface into a single page-level HTML artifact.
+
+## Document Workspace Flow
+
+The AVG-704 document workspace contract is documented in `../../docs/05-ui-ux/document-workspace-registration-flow.md`.
+
+The Documents surface must use the active workspace project id, register local text-like sources through the frozen API boundary, and show returned document ids plus generated snippet ids without implying global knowledge, production persistence or cross-project access.
+
+## Grounded Retrieval Flow
+
+The AVG-705 retrieval surface accepts an active project/session, a grounded question, deterministic retrieval hits and a grounded composition report. It renders the hits before or alongside the grounded response, including snippet ids, citation ids, matched source text, source labels, scores and confidence.
+
+Retrieval confidence is labeled as a risk signal, not proof. Missing evidence renders a visible boundary statement and keeps unsupported claims inspectable.

@@ -12,6 +12,7 @@ Fastify API: sessions, projects, messages, tools, OpenAI orchestration.
 - `registerProjectDocument()` registers local project documents through `@avg/retrieval`.
 - `getProjectDocument()`, `getProjectDocumentText()` and `listProjectDocuments()` expose the MVP-4 local document boundary.
 - `searchProjectDocuments()` and `composeGroundedProjectResponse()` expose the grounded retrieval boundary.
+- `createGroundedProjectRetrievalFlow()` and `renderGroundedProjectRetrievalFlow()` expose the AVG-705 grounded question flow with retrieval hits, citation ids, snippet ids, confidence and the grounded response boundary.
 - `renderGroundedProjectDialoguePage()` composes grounded retrieval and renders the full dialogue page through `@avg/web`.
 - `handleGroundedProjectDialoguePageRoute()` serves document registration over `POST /projects/{projectId}/documents`.
 - `handleGroundedProjectDialoguePageRoute()` serves retrieval search over `POST /projects/{projectId}/retrieval/search`.
@@ -136,6 +137,7 @@ This helper bridges retrieval composition and web rendering so the grounded answ
 
 - `POST /projects/{projectId}/documents` registers local project document text.
 - `POST /projects/{projectId}/retrieval/search` returns ranked snippet hits and retrieval confidence.
+- `POST /projects/{projectId}/retrieval/grounded-flow` renders the grounded retrieval UI flow and preserves missing evidence as a visible boundary.
 - `POST /projects/{projectId}/dialogue/page` accepts `sessionId`, `messages`, `response`, `query` and optional `limit`, then returns the page HTML response.
 
 `createApiServer()` wraps the same handler in a minimal Node HTTP server for local use.

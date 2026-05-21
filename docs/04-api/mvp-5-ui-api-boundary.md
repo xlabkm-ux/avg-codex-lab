@@ -19,6 +19,8 @@ This document freezes the API boundary the MVP-5 browser interface may rely on. 
 
 ## Operations
 
+AVG-704 uses the document registration operation described here and the UI flow in `docs/05-ui-ux/document-workspace-registration-flow.md`.
+
 | Operation | Method And Path | Request Contract | Response Contract | Used By |
 |---|---|---|---|---|
 | Health | `GET /health` | none | `HealthResponse` | workspace status |
@@ -27,6 +29,7 @@ This document freezes the API boundary the MVP-5 browser interface may rely on. 
 | Append message | `POST /sessions/{sessionId}/messages` | message content and optional retrieval context | `AvgStructuredResponse` or validation error | dialogue |
 | Register document | `POST /projects/{projectId}/documents` | `RegisterDocumentRequest` | `{ "document": AvgDocumentRef }` | documents |
 | Search retrieval | `POST /projects/{projectId}/retrieval/search` | `RetrievalSearchRequest` | `RetrievalSearchResponse` | retrieval |
+| Render grounded retrieval flow | `POST /projects/{projectId}/retrieval/grounded-flow` | session id, response, query, optional limit | HTML smoke artifact with hits, citations, unsupported claims and boundary | retrieval |
 | Render grounded dialogue page | `POST /projects/{projectId}/dialogue/page` | session id, messages, response, query, optional limit | HTML smoke artifact or normalized error | integration smoke |
 | Validate claim/response | local validation adapter | claim body or structured response | validation result | dialogue, claim review |
 
@@ -69,6 +72,7 @@ Required error codes for MVP-5 UI handling:
 | document registered | document list updates with document id and snippet preview |
 | retrieval hits | retrieval panel shows snippets, citation ids and confidence |
 | retrieval no evidence | retrieval panel shows missing-evidence boundary |
+| grounded retrieval flow | retrieval panel shows hits before or alongside the grounded response and preserves unsupported claims |
 | grounded response | dialogue and retrieval separate cited facts, interpretations and unsupported claims |
 
 ## Non-Scope
@@ -90,6 +94,7 @@ AVG-702 through AVG-708 should add or reuse contract tests when they wire these 
 - request and response shape used by the UI;
 - normalized errors for invalid document and retrieval requests;
 - project id mismatch on grounded dialogue page;
+- project id mismatch on grounded retrieval flow;
 - no-evidence retrieval boundary;
 - invalid structured response boundary.
 

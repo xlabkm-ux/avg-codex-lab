@@ -100,6 +100,8 @@ Metaphor-only, unsupported, high-risk and map/territory issues must be visually 
 
 ## Document And Retrieval Contract
 
+Detailed AVG-704 document workspace flow is tracked in `docs/05-ui-ux/document-workspace-registration-flow.md`.
+
 Document registration accepts local text-like sources only:
 
 - `local_text`;
@@ -107,6 +109,8 @@ Document registration accepts local text-like sources only:
 - `local_document`.
 
 The document surface must show generated document ids and snippet ids after registration. The retrieval surface must show snippets before or alongside the answer that uses them.
+
+The AVG-705 grounded retrieval flow must keep the question, retrieval hits, snippet ids, citation ids, matched text, source labels, scores and confidence visible in the retrieval surface.
 
 Grounded answers must separate:
 
@@ -166,6 +170,7 @@ The UI may depend on these local API operations during MVP-5:
 | validate response or claim | local validation adapter | dialogue, claim review |
 | register document | `POST /projects/{projectId}/documents` | documents |
 | search retrieval | `POST /projects/{projectId}/retrieval/search` | retrieval |
+| grounded retrieval flow | `POST /projects/{projectId}/retrieval/grounded-flow` | retrieval |
 | grounded dialogue page | `POST /projects/{projectId}/dialogue/page` | integration smoke path |
 
 All UI-facing failures use the normalized API error envelope:
