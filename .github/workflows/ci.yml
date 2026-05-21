@@ -18,5 +18,13 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm lint
       - run: pnpm typecheck
+      - run: pnpm validate:schemas
       - run: pnpm test
+      - run: pnpm test:contract
+      - run: pnpm test:security
+      - run: pnpm test:ai
+      - run: pnpm test:claim-safety
+      - run: pnpm test:no-fairy-tale
+      - run: pnpm test:prompt-regression
+      - run: pnpm audit --audit-level=moderate
       - run: pnpm build
